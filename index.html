@@ -1,0 +1,777 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATI HMA Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Barlow',Arial,sans-serif;font-size:22px;background:#1a1a1a;color:#222}
+.app{display:flex;flex-direction:column;min-height:100vh}
+.header{background:#cc2200;color:#fff;padding:10px 20px;display:flex;align-items:center;gap:14px;border-bottom:3px solid #000}
+.header-logo{display:flex;align-items:center}
+.header-logo img{height:36px;width:auto}
+.header h1{font-size:28px;font-weight:800;letter-spacing:.5px;color:#fff;font-family:'Barlow Condensed',sans-serif}
+.header-sub{font-size:20px;color:rgba(255,255,255,.7);margin-left:auto;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif}
+.tabs{background:#111;display:flex;border-bottom:3px solid #cc2200}
+.tab{padding:11px 22px;cursor:pointer;font-size:22px;font-weight:700;color:#888;border-bottom:3px solid transparent;margin-bottom:-3px;text-transform:uppercase;letter-spacing:.5px;transition:all .2s;font-family:'Barlow Condensed',sans-serif}
+.tab.active{color:#fff;border-bottom-color:#cc2200;background:#1a1a1a}
+.tab:hover:not(.active){color:#ccc;background:#1a1a1a}
+.content{padding:18px;flex:1;background:#f2f2f2}
+.card{background:#fff;border-radius:3px;padding:16px;margin-bottom:14px;border-top:3px solid #cc2200;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.card-title{font-size:22px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#fff;background:#1a1a1a;margin:-16px -16px 14px;padding:8px 14px;border-bottom:2px solid #cc2200;font-family:'Barlow Condensed',sans-serif}
+.form-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.form-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:110px}
+.form-group label{font-size:19px;font-weight:700;text-transform:uppercase;color:#555;letter-spacing:.5px;font-family:'Barlow Condensed',sans-serif}
+.form-group input,.form-group select,.form-group textarea{border:1px solid #ccc;border-radius:2px;padding:7px 8px;font-size:20px;width:100%;background:#fafafa}
+.form-group input:focus,.form-group select:focus{outline:none;border-color:#cc2200;background:#fff}
+.pain-flag{display:none;background:#cc2200;color:#fff;font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:7px 14px;border-radius:2px;margin-bottom:10px;border-left:4px solid #000;align-items:center;gap:8px}
+.pain-flag.visible{display:flex}
+.field-locked-no{background:#fde8e8!important;border-color:#cc2200!important;color:#cc2200!important;font-weight:700}
+.field-locked-yes{background:#e8f5e9!important;border-color:#2e7d32!important;color:#2e7d32!important;font-weight:700}
+/* SCORE GRID */
+.score-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:10px}
+.score-block{background:#f8f8f8;border-radius:3px;padding:9px 7px;border:1px solid #ddd;border-top:2px solid #1a1a1a;transition:border-top-color .2s}
+.score-block.hypermobile{border-top-color:#1565c0;background:#f0f4ff}
+.score-block-title{font-size:18px;font-weight:700;text-transform:uppercase;color:#fff;background:#1a1a1a;margin:-9px -7px 8px;padding:4px 6px;text-align:center;line-height:1.3;transition:background .2s;font-family:'Barlow Condensed',sans-serif}
+.score-block.hypermobile .score-block-title{background:#1565c0}
+.score-side-label{font-size:14px;color:#555;margin-bottom:3px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+.score-row{display:flex;gap:3px;margin-bottom:3px}
+.score-btn{flex:1;padding:5px 2px;border:1px solid #ccc;border-radius:2px;background:#fff;font-size:19px;font-weight:700;cursor:pointer;text-align:center;transition:all .12s;color:#444}
+.score-btn:hover{border-color:#cc2200;color:#cc2200;background:#fff8f7}
+.score-btn.selected-score{background:#cc2200;border-color:#cc2200;color:#fff}
+.score-btn.pain-btn{font-size:15px;font-weight:700;letter-spacing:.3px}
+.score-btn.selected-pain{background:#1a1a1a;border-color:#1a1a1a;color:#fff}
+.score-divider{border:none;border-top:1px dashed #ccc;margin:4px 0}
+.score-side-wrap{margin-bottom:7px}
+.score-final{text-align:center;font-size:18px;font-weight:700;color:#333;margin-top:6px;padding-top:5px;border-top:2px solid #cc2200}
+.score-final span{background:#cc2200;color:#fff;padding:2px 8px;border-radius:2px;font-size:19px}
+.score-final span.zero{background:#1a1a1a}
+/* HYPERMOBILITY TOGGLE */
+.hyper-toggle{display:flex;align-items:center;justify-content:center;margin-top:6px;gap:5px}
+.hyper-btn{width:100%;padding:4px 3px;border:1px solid #aac;border-radius:2px;background:#fff;font-size:14px;font-weight:700;cursor:pointer;text-align:center;color:#1565c0;letter-spacing:.3px;text-transform:uppercase;transition:all .15s}
+.hyper-btn:hover{background:#e8eeff}
+.hyper-btn.active{background:#1565c0;border-color:#1565c0;color:#fff}
+/* TOTAL */
+.total-display{display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:3px;margin-bottom:12px;border-left:5px solid #ccc;background:#f5f5f5;transition:all .3s}
+.total-display.high{background:#fde8e8;border-left-color:#cc2200}
+.total-display.mod{background:#fff8e1;border-left-color:#f9a825}
+.total-display.low{background:#e8f5e9;border-left-color:#2e7d32}
+.total-num{font-size:50px;font-weight:900;color:#1a1a1a;min-width:44px}
+.total-label{font-size:22px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-family:'Barlow Condensed',sans-serif}
+.total-sub{font-size:18px;color:#666;margin-top:2px}
+.hyper-summary{display:none;background:#e8eeff;border:1px solid #1565c0;border-left:4px solid #1565c0;border-radius:2px;padding:7px 14px;margin-bottom:10px;font-size:18px;font-weight:700;color:#1565c0;text-transform:uppercase;letter-spacing:.5px}
+.hyper-summary.visible{display:flex;align-items:center;gap:8px}
+/* BUTTONS */
+.btn{padding:8px 18px;border:none;border-radius:2px;cursor:pointer;font-size:20px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;transition:all .15s;font-family:'Barlow Condensed',sans-serif}
+.btn-red{background:#cc2200;color:#fff}.btn-red:hover{background:#aa1a00}
+.btn-black{background:#1a1a1a;color:#fff}.btn-black:hover{background:#333}
+.btn-outline{background:#fff;color:#333;border:1px solid #ccc}.btn-outline:hover{background:#f5f5f5}
+.btn-sm{padding:5px 10px;font-size:18px}
+.btn-green{background:#2e7d32;color:#fff}.btn-green:hover{background:#1b5e20}
+/* TABLE */
+.emp-table{width:100%;border-collapse:collapse;font-size:19px}
+.emp-table th{background:#1a1a1a;color:#fff;padding:9px 10px;text-align:left;font-size:19px;text-transform:uppercase;letter-spacing:.5px;font-family:'Barlow Condensed',sans-serif}
+.emp-table th:first-child{border-left:3px solid #cc2200}
+.emp-table td{padding:8px 10px;border-bottom:1px solid #eee}
+.emp-table tr:hover td{background:#fff8f7}
+.emp-table tr:hover td:first-child{border-left:3px solid #cc2200}
+.emp-table td:first-child{border-left:3px solid transparent}
+.badge{display:inline-block;padding:2px 7px;border-radius:2px;font-size:18px;font-weight:700;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif}
+.badge-high{background:#fde8e8;color:#b71c1c}
+.badge-mod{background:#fff3cd;color:#795548}
+.badge-low{background:#e8f5e9;color:#1b5e20}
+.badge-hyper{background:#e8eeff;color:#1565c0}
+/* EXERCISE BUILDER */
+.ex-category{margin-bottom:12px;border-radius:3px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.ex-cat-header{background:#1a1a1a;color:#fff;padding:9px 14px;font-size:20px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;justify-content:space-between;border-left:4px solid #555;font-family:'Barlow Condensed',sans-serif}
+.ex-cat-header.suggested{border-left-color:#cc2200}
+.ex-cat-header.hyper-suggested{border-left-color:#1565c0}
+.ex-grid{display:grid;grid-template-columns:repeat(3,1fr);background:#fff;border:1px solid #ddd;border-top:none}
+.ex-item{padding:9px 11px;border-right:1px solid #eee;border-bottom:1px solid #eee;cursor:pointer;transition:background .1s;display:flex;align-items:center;gap:7px;font-size:19px}
+.ex-item:hover{background:#fff8f7}
+.ex-item.selected{background:#fff0ee;border-left:3px solid #cc2200}
+.ex-check{width:15px;height:15px;border:1px solid #ccc;border-radius:2px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700}
+.ex-item.selected .ex-check{background:#cc2200;border-color:#cc2200;color:#fff}
+.ex-thumb{width:72px;height:60px;object-fit:contain;border-radius:2px;flex-shrink:0;border:1px solid #eee;background:#f9f9f9}
+/* PRINT */
+.print-preview{background:#fff;border:1px solid #ccc;padding:20px;max-width:760px;margin:0 auto}
+.print-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:3px solid #cc2200}
+.print-logo-box{background:#1a1a1a;color:#fff;padding:6px 14px;font-weight:900;font-size:28px;letter-spacing:2px}
+.print-logo-sub{font-size:14px;color:#555;text-align:center;margin-top:2px}
+.print-title{font-size:35px;font-weight:800;text-transform:uppercase;color:#cc2200;letter-spacing:1px;font-family:'Barlow Condensed',sans-serif}
+.print-emp-info{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;font-size:19px}
+.print-info-item{border-bottom:1px solid #333;padding-bottom:2px}
+.print-info-label{font-size:15px;color:#555;text-transform:uppercase}
+.print-exercises{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.print-ex-card{border:1px solid #ccc;border-radius:3px;padding:10px;font-size:18px;border-top:2px solid #cc2200}
+.print-ex-img{width:100%;height:120px;object-fit:contain;border-radius:2px;margin-bottom:6px;border:1px solid #eee;background:#f9f9f9}
+.print-ex-name{font-weight:700;font-size:18px;text-transform:uppercase;color:#cc2200;margin-bottom:4px;letter-spacing:.3px}
+.print-ex-inst{font-size:15px;color:#333;line-height:1.4}
+.print-ex-sets{background:#f5f5f5;border-top:1px solid #ddd;margin-top:6px;padding:4px 6px;font-size:15px}
+.print-footer{margin-top:14px;font-size:14px;color:#777;text-align:center;border-top:1px solid #ddd;padding-top:6px}
+.print-hyper-note{background:#e8eeff;border:1px solid #1565c0;border-radius:2px;padding:5px 8px;margin-bottom:10px;font-size:14px;color:#1565c0;font-weight:700}
+.search-bar{display:flex;gap:8px;margin-bottom:14px}
+.search-bar input{flex:1;padding:8px 10px;border:1px solid #ccc;border-radius:2px;font-size:20px}
+.flex-end{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.notes-area{width:100%;border:1px solid #ccc;border-radius:2px;padding:7px 8px;font-size:19px;resize:vertical;min-height:60px;background:#fafafa}
+.hidden{display:none}
+.section-divider{font-size:20px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#cc2200;border-bottom:1px solid #cc2200;padding-bottom:4px;margin:14px 0 10px;font-family:'Barlow Condensed',sans-serif}
+@media print{
+  body{background:#fff}
+  .no-print{display:none!important}
+  .print-preview{border:none;padding:10px}
+}
+/* DARK MODE */
+.dark-toggle{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);font-family:'Barlow Condensed',sans-serif;font-size:16px;margin-left:12px}
+.dark-toggle:hover{background:rgba(255,255,255,.28)}
+body.dark{background:#111;color:#d8d8d8}
+body.dark .content{background:#181818}
+body.dark .card{background:#232323;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+body.dark .card-title{background:#111}
+body.dark .form-group label{color:#999}
+body.dark .form-group input,body.dark .form-group select,body.dark .form-group textarea{background:#1e1e1e;border-color:#444;color:#d8d8d8}
+body.dark .form-group input:focus,body.dark .form-group select:focus{border-color:#cc2200;background:#1e1e1e}
+body.dark .notes-area{background:#1e1e1e;border-color:#444;color:#d8d8d8}
+body.dark .score-block{background:#1e1e1e;border-color:#444}
+body.dark .score-block-title{background:#111}
+body.dark .score-block.hypermobile .score-block-title{background:#1565c0}
+body.dark .score-side-label{color:#999}
+body.dark .score-btn{background:#2a2a2a;border-color:#444;color:#bbb}
+body.dark .score-btn:hover{border-color:#cc2200;color:#cc2200;background:#2a0000}
+body.dark .score-divider{border-top-color:#444}
+body.dark .score-final{color:#bbb;border-top-color:#cc2200}
+body.dark .hyper-btn{background:#1e1e1e;border-color:#3a4a6a;color:#6fa3e0}
+body.dark .hyper-btn:hover{background:#1a2a3a}
+body.dark .total-display{background:#1e1e1e}
+body.dark .total-display.high{background:#2a1010;border-left-color:#cc2200}
+body.dark .total-display.mod{background:#2a2210;border-left-color:#f9a825}
+body.dark .total-display.low{background:#102210;border-left-color:#2e7d32}
+body.dark .total-num{color:#e8e8e8}
+body.dark .total-sub{color:#999}
+body.dark .hyper-summary{background:#0d1a2e;border-color:#1565c0}
+body.dark .search-bar input{background:#1e1e1e;border-color:#444;color:#d8d8d8}
+body.dark .emp-table td{border-bottom-color:#333;color:#d8d8d8}
+body.dark .emp-table tr:hover td{background:#2a1a1a}
+body.dark .emp-table tr:hover td:first-child{border-left-color:#cc2200}
+body.dark .btn-outline{background:#2a2a2a;color:#d8d8d8;border-color:#444}
+body.dark .btn-outline:hover{background:#333}
+body.dark .ex-grid{background:#232323;border-color:#333}
+body.dark .ex-item{border-right-color:#333;border-bottom-color:#333;color:#d8d8d8}
+body.dark .ex-item:hover{background:#2a1a1a}
+body.dark .ex-item.selected{background:#2a1010;border-left-color:#cc2200}
+body.dark .ex-check{border-color:#555}
+body.dark .score-btn.selected-score{background:#cc2200!important;border-color:#cc2200!important;color:#fff!important}
+body.dark .score-btn.selected-pain{background:#444!important;border-color:#666!important;color:#fff!important}
+body.dark .print-preview,body.dark .print-preview *{background:#fff!important;color:#222!important}
+body.dark .print-ex-name{color:#cc2200!important}
+body.dark .print-info-label{color:#555!important}
+body.dark .print-footer{color:#777!important}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="header">
+  <div class="header-logo" style="background:#fff;border-radius:3px;padding:3px 10px;"><img src="/images/ati-logo.jpg" alt="ATI Worksite Solutions" style="height:36px;width:auto"></div>
+  <h1>HMA Tracker</h1>
+  <button class="btn btn-sm dark-toggle" id="dark-toggle" onclick="toggleDark()">Dark</button>
+</div>
+<div class="tabs no-print">
+  <div class="tab active" onclick="showTab('records')" id="tab-records">Employee Records</div>
+  <div class="tab" onclick="showTab('new')" id="tab-new">New Assessment</div>
+  <div class="tab" onclick="showTab('exercises')" id="tab-exercises">Exercise Sheet Builder</div>
+</div>
+
+<div class="content" id="content-records">
+  <div class="card">
+    <div class="card-title">HMA Records</div>
+    <div class="search-bar">
+      <input type="text" id="search-input" placeholder="Search by name, company, or department..." oninput="renderTable()">
+      <button class="btn btn-red btn-sm" onclick="showTab('new')">+ New Assessment</button>
+    </div>
+    <table class="emp-table">
+      <thead><tr><th>Name</th><th>Date</th><th>Shift</th><th>Type</th><th>Score</th><th>Risk</th><th>Flags</th><th>Follow-up</th><th>Actions</th></tr></thead>
+      <tbody id="emp-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="content hidden" id="content-new">
+  <div class="card">
+    <div class="card-title" id="form-title">New Assessment</div>
+    <div class="form-row">
+      <div class="form-group"><label>First Name*</label><input type="text" id="f-fname" placeholder="First name"></div>
+      <div class="form-group"><label>Last Name*</label><input type="text" id="f-lname" placeholder="Last name"></div>
+      <div class="form-group"><label>Date of Assessment*</label><input type="date" id="f-date"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Company</label><input type="text" id="f-company" value="Hendrickson"></div>
+      <div class="form-group"><label>Department</label><input type="text" id="f-dept"></div>
+      <div class="form-group"><label>Location</label><input type="text" id="f-location"></div>
+      <div class="form-group"><label>Shift</label><select id="f-shift"><option value="1st">1st Shift</option><option value="2nd">2nd Shift</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="max-width:200px"><label>Assessment Type</label><select id="f-type"><option value="Initial">Initial</option><option value="Retest">Retest</option></select></div>
+    </div>
+    <div class="section-divider">Movement Scores</div>
+    <div class="pain-flag" id="pain-flag"><span style="font-size:25px">⚑</span><span>Pain reported — Physical Assessment auto-opened. Corrective Plan locked to No per protocol.</span></div>
+    <div class="hyper-summary" id="hyper-summary"><span style="font-size:25px">⬡</span><span id="hyper-summary-text">Hypermobility flagged — stability-focused exercises will be auto-suggested for flagged movements.</span></div>
+    <div class="score-grid" id="score-grid"></div>
+    <div id="total-display" class="total-display">
+      <div class="total-num" id="total-num">0</div>
+      <div><div class="total-label" id="total-label">Running Total</div><div class="total-sub" id="risk-desc">Score movements above</div></div>
+      <div style="margin-left:auto;font-size:18px;color:#888;text-align:right">
+        <div style="font-size:15px;text-transform:uppercase;letter-spacing:.5px">Scoring Key</div>
+        <div style="margin-top:3px"><span class="badge badge-high">0–5 High</span> <span class="badge badge-mod">6–10 Mod</span> <span class="badge badge-low">11–15 Low</span></div>
+      </div>
+    </div>
+    <div class="section-divider">Action Plan</div>
+    <div class="form-row">
+      <div class="form-group" style="flex:2"><label>Additional Comments / Past MSK Injuries</label><textarea class="notes-area" id="f-notes" rows="3"></textarea></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Follow-up In</label>
+        <select id="f-followup"><option value="">None</option><option value="1">1 week</option><option value="2">2 weeks</option><option value="3">3 weeks</option><option value="4">4 weeks</option><option value="5">5 weeks</option><option value="6" selected>6 weeks</option><option value="8">8 weeks</option></select></div>
+      <div class="form-group"><label>Retest In</label>
+        <select id="f-retest"><option value="">None</option><option value="1">1 month</option><option value="2">2 months</option><option value="3">3 months</option><option value="4" selected>4 months</option><option value="5">5 months</option><option value="6">6 months</option></select></div>
+      <div class="form-group"><label>Corrective Plan Created</label><select id="f-plan"><option value="No">No</option><option value="Yes">Yes</option></select></div>
+      <div class="form-group"><label>Physical Assessment Opened</label><select id="f-pa"><option value="No">No</option><option value="Yes">Yes</option></select></div>
+    </div>
+    <div class="flex-end">
+      <button class="btn btn-outline" onclick="clearForm()">Clear</button>
+      <button class="btn btn-green" onclick="saveRecord()">Save Record</button>
+      <button class="btn btn-red" onclick="saveAndBuildSheet()">Save + Build Exercise Sheet</button>
+    </div>
+  </div>
+</div>
+
+<div class="content hidden" id="content-exercises">
+  <div id="ex-builder">
+    <div class="card">
+      <div class="card-title">Exercise Sheet Builder</div>
+      <div class="form-row">
+        <div class="form-group"><label>Employee Name</label><input type="text" id="ex-emp-name" placeholder="Enter name"></div>
+        <div class="form-group"><label>Date</label><input type="date" id="ex-date"></div>
+        <div class="form-group"><label>Provider / Clinician</label><input type="text" id="ex-provider" value="ATI Worksite Solutions"></div>
+      </div>
+      <p style="font-size:19px;color:#555;margin-top:4px">
+        <span style="color:#cc2200;font-weight:700">Red border</span> = mobility-focused suggestion &nbsp;|&nbsp;
+        <span style="color:#1565c0;font-weight:700">Blue border</span> = stability-focused (hypermobility). Click any exercise to toggle.
+      </p>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px">
+      <button class="btn btn-outline" onclick="clearSelections()">Clear All</button>
+      <button class="btn btn-red" onclick="buildPrintSheet()">Preview Print Sheet</button>
+    </div>
+    <div id="ex-categories"></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px">
+      <button class="btn btn-outline" onclick="clearSelections()">Clear All</button>
+      <button class="btn btn-red" onclick="buildPrintSheet()">Preview Print Sheet</button>
+    </div>
+  </div>
+  <div id="ex-print" class="hidden">
+    <div style="display:flex;gap:8px;margin-bottom:12px" class="no-print">
+      <button class="btn btn-black" onclick="backToBuilder()">← Back to Builder</button>
+      <button class="btn btn-red" onclick="window.print()">Print / Save PDF</button>
+    </div>
+    <div class="print-preview" id="print-sheet"></div>
+  </div>
+</div>
+</div>
+
+<script>
+// localStorage adapter for window.storage
+window.storage = {
+  get: function(key) {
+    var val = localStorage.getItem(key);
+    return Promise.resolve(val !== null ? { value: val } : null);
+  },
+  set: function(key, value) {
+    localStorage.setItem(key, value);
+    return Promise.resolve();
+  }
+};
+</script>
+
+<script>
+const MOVEMENTS=[
+  {key:'lunge',label:'Forward Lunge',sides:['Right Leg','Left Leg']},
+  {key:'sld',label:'Single Leg Dip',sides:['Right Leg','Left Leg']},
+  {key:'shoulder',label:'Shoulder Reach',sides:['Right Arm','Left Arm']},
+  {key:'trunk',label:'Trunk Rotation',sides:['Right Side','Left Side']},
+  {key:'cervical',label:'Cervical Rotation',sides:['Right Side','Left Side']}
+];
+
+let scores={};
+let hypermobile={lunge:false,sld:false,shoulder:false,trunk:false,cervical:false};
+MOVEMENTS.forEach(m=>{scores[m.key]=[{val:null,pain:false},{val:null,pain:false}];});
+
+// ── STABILITY-FOCUSED SWAPS (for hypermobility) ──────────────────
+const HYPER_SUGGEST={
+  lunge:  ['l4','l6','l7','l9'],
+  sld:    ['s3','s4','s6','s5','s7'],
+  shoulder:['sh3','sh4','sh5','sh7','sh8'],
+  trunk:  ['t6','t8','t7','t4','t5'],
+  cervical:['c5','c7','c8','c4']
+};
+
+// ── MOBILITY-FOCUSED SUGGESTIONS (default, for low scorers) ──────
+const MOBILITY_SUGGEST={
+  lunge:   ['l1','l2','l3'],
+  sld:     ['s1','s2','s9','b1','b2'],
+  shoulder:['sh1','sh2','sh9'],
+  trunk:   ['t1','t2','t3','co1','co2'],
+  cervical:['c1','c2','c3']
+};
+
+let IMAGE_REGISTRY={};
+
+// Default images bundled with the app (from /images/)
+const DEFAULT_IMAGES={
+  'l1':'/images/Hip Flexor Stretch off of Table.png',
+  'l5':'/images/High Step-Ups.png',
+  'l6':'/images/Bird-dog 2.png',
+  'l8':'/images/Medial Stabilization Lunge with Band.png',
+  'l9':'/images/Gluteal Isometric.png',
+  's1':'/images/Half kneeling calf stretch 1.png',
+  's2':'/images/Half Kneeling Hip Flexor Stretch 2.png',
+  's3':'/images/Bridge.png',
+  's4':'/images/Bridge Marches.png',
+  's6':'/images/Fire Hydrants.png',
+  'sh2':'/images/Overhead Triceps Stretch.png',
+  'sh4':'/images/Ball on Wall Stabilization.png',
+  'sh7':'/images/Bow and Arrow.png',
+  'sh9':'/images/Internal Rotation Stretch with Assistance.png',
+  't7':'/images/Diagonal Extension (Swords) with Band.png',
+  't8':'/images/Diagonal Chop with Band.png',
+  'c1':'/images/Levator Scapulae Stretch.png',
+  'c2':'/images/Cervical Side Bending.png',
+  'c4':'/images/Chin Tucks.png',
+  'c5':'/images/Isometric Cervical Retractions.png',
+  'c6':'/images/Cervical Rotation with Ball.png',
+  'c7':'/images/Isometric Cervical Rotations.png',
+  'c8':'/images/Isometric Cervical Side Bending.png',
+  'b5':'/images/Forward Walk with Head Turn.png',
+  'b9':'/images/Crossover Jumps.png',
+  'co2':'/images/Deadbug.png',
+  'co6':'/images/Hamstring Stretch.png',
+  'co7':'/images/Lunge with Weighted Rotation.png'
+};
+
+const EXERCISES={
+  lunge:{label:'Forward Lunges',exercises:[
+    {id:'l1',name:'Hip Flexor Stretch',inst:'Lie on a table at 45° with one leg hanging off. Let your leg hang to feel a stretch in the front of your hip.',sets:'2x30 sec hold each side'},
+    {id:'l2',name:'Pigeon Stretch',inst:'Stand facing a table, raise leg and place lower leg on the edge. Slowly lean forward until you feel a stretch in your hip.',sets:'2x30 sec hold each side'},
+    {id:'l3',name:'Reverse Lunge',inst:'Stand with hands behind your head, step one foot back and bend both knees to ~90°. Drive through front foot to stand.',sets:'3x10 each side'},
+    {id:'l4',name:'Wall Squat',inst:'Back against wall, feet shoulder-width. Lower body down the wall until knees are ~90°, then press through heels to rise.',sets:'3x30 sec hold'},
+    {id:'l5',name:'High Step Up',inst:'Bosu ball (curved side up) in front. Step up and drive opposite knee toward ceiling. Keep abdominals contracted.',sets:'3x10 each side'},
+    {id:'l6',name:'Bird Dog',inst:'On hands and knees. Raise one arm forward while lifting the opposite leg back until both are parallel to the floor.',sets:'3x10 each side'},
+    {id:'l7',name:'Single Leg Squat',inst:'Facing away from a chair, raise one leg. Slowly bend at hip/knee toward chair edge, then press through heel to stand.',sets:'3x10 each side'},
+    {id:'l8',name:'Medial Stabilization Lunge',inst:'Band anchored at knee height. Step far leg forward, loop band around it. Bend both knees to ~90° and stand back up.',sets:'3x10 each side'},
+    {id:'l9',name:'Gluteal Isometric',inst:'Stand next to wall, raise working leg to 90°, rotate upper leg slightly outward so knee presses into wall. Hold.',sets:'3x10 sec hold each side'}
+  ]},
+  sld:{label:'Single Leg Dip',exercises:[
+    {id:'s1',name:'Half Kneeling Calf Stretch',inst:'On one knee, hands on front knee. Push knee forward without lifting heel until you feel a stretch in the back of your lower leg.',sets:'2x30 sec hold each side'},
+    {id:'s2',name:'Kneeling Hip Flexor Stretch',inst:'Half-kneel with opposite leg at 90°. Push hips forward while raising the arm on the stretched side overhead.',sets:'2x30 sec hold each side'},
+    {id:'s3',name:'Bridge',inst:'On your back, knees bent. Squeeze glutes and lift hips off ground until hips align with knees and shoulders.',sets:'3x10-15'},
+    {id:'s4',name:'Bridge Marches',inst:'In bridge position, hold hips up and alternate lifting each foot off the ground. Keep hips level.',sets:'3x10 each side'},
+    {id:'s5',name:'Single Leg Stance',inst:'Stand with a chair in front for balance. Raise one leg and opposite arm. Hold your balance.',sets:'3x30 sec each side'},
+    {id:'s6',name:'Fire Hydrants',inst:'On hands and knees. Raise one leg out to the side without straightening your knee. Squeeze glute. Keep 90° bend.',sets:'3x15 each side'},
+    {id:'s7',name:'Wide Stance Walking',inst:'Band around ankles. Bend slightly at hips/knees. Step one foot forward past shoulder width against band, feet together.',sets:'3x10 steps'},
+    {id:'s8',name:'Single Leg Balance Clock',inst:'Stand on one leg. Move raised leg forward/back, side/back, rear/neutral. Repeat 3 times each leg.',sets:'3 rounds each side'},
+    {id:'s9',name:'Seated Piriformis Stretch',inst:'Seated, cross one ankle over opposite knee. Press gently on raised knee and lean forward until you feel a glute stretch.',sets:'2x30 sec each side'}
+  ]},
+  shoulder:{label:'Shoulder Reach',exercises:[
+    {id:'sh1',name:'Doorway Pec Stretch',inst:'Stand in a doorway, arms parallel to floor, elbows at 90°. Forearms on doorframe. Shift weight forward until you feel the stretch.',sets:'2x30 sec'},
+    {id:'sh2',name:'Overhead Tricep Stretch',inst:'Raise one arm and reach down your back, elbow pointing up. Gently press elbow down with your other hand.',sets:'2x30 sec each side'},
+    {id:'sh3',name:'Wall Push Up',inst:'Hands on wall, arms straight. Brace abdominals and bend elbows to lower body toward wall. Press back out.',sets:'3x15'},
+    {id:'sh4',name:'Ball on Wall Stabilization',inst:'Facing wall, place small ball with arm extended. Press ball into wall and move arm up/down then in small circles.',sets:'3x20 sec each arm'},
+    {id:'sh5',name:'Scapular Retraction "Y"',inst:'Lie on stomach, arms in Y position, palms down. Pull shoulder blades back and down. Raise arms toward ceiling.',sets:'3x12'},
+    {id:'sh6',name:'Pass Through',inst:'Hold band with hands outside shoulder-width. Bring band straight up over head and behind back to hips, then return.',sets:'3x10'},
+    {id:'sh7',name:'Bow and Arrow',inst:'Hold band in both hands, elevate one arm forward. Pull the other end back like drawing a bow. Keep arms level.',sets:'3x12 each side'},
+    {id:'sh8',name:'Wall Walks',inst:'Band above wrists, forearms on wall at 90°. Slide arms apart against band, then walk hands alternately up the wall.',sets:'3x5 up-down cycles'},
+    {id:'sh9',name:'Internal Rotation with Strap',inst:'Hold strap overhead with unaffected arm. Use it to pull affected arm behind your back by extending the overhead elbow.',sets:'2x30 sec each side'}
+  ]},
+  trunk:{label:'Trunk Rotation',exercises:[
+    {id:'t1',name:'Child Pose with Cross Reach',inst:'On hands and knees, knees wide, big toes touching. Bow forward. Reach one arm under torso and across body.',sets:'2x30 sec each side'},
+    {id:'t2',name:'Side Lying T-Spine Rotation',inst:'Lie on side, knees bent. Arms out front. Raise top arm over body to opposite side, rotating torso and head. Keep legs still.',sets:'3x10 each side'},
+    {id:'t3',name:'Standing Lat Stretch',inst:'Arms extended forward on a surface. Step back, keep back flat, and aim chest toward floor between arms.',sets:'2x30 sec'},
+    {id:'t4',name:'Prone Scapular Retraction "W"',inst:'Lie on stomach, arms in W position, palms down. Raise arms off ground pulling shoulder blades together.',sets:'3x12'},
+    {id:'t5',name:'Prone Scapular Retraction "T"',inst:'Lie on stomach, arms straight to sides in T position. Raise arms off ground, pulling shoulder blades together.',sets:'3x12'},
+    {id:'t6',name:'Short Arc Rotation',inst:'Band in door behind you, hold at opposite shoulder. Face door. Rotate upper trunk slowly forward/backward. Hips stay still.',sets:'3x10 each direction'},
+    {id:'t7',name:'Diagonal Extension "Sword"',inst:'Band anchored high, stand sideways. Grip band with near hand above head. Bring arm down and across body.',sets:'3x12 each side'},
+    {id:'t8',name:'Diagonal Chop',inst:'Band anchored above to your side. Both hands on handle. Twist torso and bring band down diagonally across body.',sets:'3x12 each side'}
+  ]},
+  cervical:{label:'Cervical',exercises:[
+    {id:'c1',name:'Levator Scapulae Stretch',inst:'Sit or stand straight. Tilt head to one side, ear toward shoulder. Hold without shrugging.',sets:'2x30 sec each side'},
+    {id:'c2',name:'Cervical Side Bending',inst:'Sit or stand straight. Tilt head to one side, ear toward shoulder. Hold. Transition slowly to other side.',sets:'2x30 sec each side'},
+    {id:'c3',name:'Sternocleidomastoid Stretch',inst:'Sit in a chair. Hands on collarbone, pull down. Tilt chin up and tilt head away from hands.',sets:'2x30 sec each side'},
+    {id:'c4',name:'Chin Tuck',inst:'Look straight ahead. Place finger on chin tip and gently press inward so chin tucks in and head retracts back.',sets:'3x10-second holds'},
+    {id:'c5',name:'Isometric Cervical Retraction',inst:'Back against wall, towel behind head. Press head back against wall and hold. Wall prevents actual movement.',sets:'3x10-second holds'},
+    {id:'c6',name:'Cervical Rotation with Ball',inst:'Ball on wall at face height, forehead on ball. Rotate head all the way to one side then the other.',sets:'3x10 each side'},
+    {id:'c7',name:'Isometric Cervical Rotation',inst:'Place fingers on side of forehead. Attempt to rotate head toward fingers but resist with hand. Head stays neutral.',sets:'3x10-second holds each side'},
+    {id:'c8',name:'Isometric Cervical Side Bending',inst:'Two fingers on temple. Attempt to push head to side and resist with neck muscles. Head should not move.',sets:'3x10-second holds each side'},
+    {id:'c9',name:'Tread the Needle with Extension',inst:'On hands and knees. Brace abdominals and lift one arm straight out to the side, palm down. Slowly bring arm back down.',sets:'3x10 each side'}
+  ]}
+};
+
+const BALANCE_EX=[
+  {id:'b1',name:'Single Leg Balance',inst:'Stand straight, feet together. Raise one foot off ground. Arms out to sides for balance. Brace abdominals.',sets:'3x30 sec each side'},
+  {id:'b2',name:'Tandem Balance',inst:'Step onto foam pad so one heel is in corner and other heel right in front of toes. Hold balance.',sets:'3x30 sec each side'},
+  {id:'b3',name:'Single Leg Toe Touches',inst:'Stand on one leg. Tap raised foot out to side then across body to other side while maintaining balance.',sets:'3x10 each side'},
+  {id:'b4',name:'Single Leg Sit to Stand',inst:'Seated in chair. Lift one foot off ground and stand all the way up. Slowly lower back down. Keep non-working leg lifted.',sets:'3x10 each side'},
+  {id:'b5',name:'Forward Walk with Head Turn',inst:'Walk forward starting with left foot. Move head up diagonally then down diagonally toward opposite side as you walk.',sets:'3x5 steps each direction'},
+  {id:'b6',name:'Monster Walk',inst:'Raise arms to shoulder height, palms down. Kick one leg up toward palms, then step forward. Repeat with other leg.',sets:'3x10 steps'},
+  {id:'b7',name:'Single Leg Clock Balance',inst:'Stand on one leg. Move raised leg forward/back, out to side/back, then backward/back to neutral. Repeat 3 times each leg.',sets:'3 rounds each side'},
+  {id:'b8',name:'Single Leg Forward Balance',inst:'Stand straight. Raise arms overhead and kick one leg straight back as you hinge forward until back leg, torso and arms are parallel to floor.',sets:'3x10 each side'},
+  {id:'b9',name:'Cross Over Jumps',inst:'Jump to the left and land softly on your left leg. Swing right leg slightly behind left and tap toes to floor. Repeat to the other side.',sets:'3x10 each side'}
+];
+
+const CORE_EX=[
+  {id:'co1',name:'Plank',inst:'Lie face down, elbows under shoulders. Elevate body off ground. Feet, hips, and torso in a straight line.',sets:'3x30 sec'},
+  {id:'co2',name:'Dead Bug',inst:'On back, legs at 90°, arms over chest. Lower one arm overhead while extending opposite leg. Return and repeat.',sets:'3x10 each side'},
+  {id:'co3',name:'Pelvic Tilt',inst:'On back, knees bent. Engage abdominals and tilt pelvis into floor. Movement comes from hips only.',sets:'3x10'},
+  {id:'co4',name:'Superman',inst:'Lie on stomach, arms forward. Raise head, chest, one arm and opposite leg. Lower and repeat.',sets:'3x10 each side'},
+  {id:'co5',name:'Anti Rotation Squat',inst:'Band anchored to side at hip height. Hands clasped at chest, press band out without rotating. Squat and stand.',sets:'3x10 each side'},
+  {id:'co6',name:'Hamstring Stretch',inst:'Place a belt around the foot of the leg to stretch and lie facing up. With knee as straight as possible, lift your leg up and back.',sets:'2x30 sec each side'},
+  {id:'co7',name:'Rotation Lunge',inst:'Stand holding a small ball. Step forward into a lunge. Push ball out in front of you and twist your body over your front leg.',sets:'3x10 each side'}
+];
+
+let records=[], editingId=null, selectedExercises={}, suggestedKeys={}, hyperSuggestedKeys={}, currentEmpForSheet=null;
+
+async function loadRecords(){try{const r=await window.storage.get('hma-records');if(r)records=JSON.parse(r.value);}catch(e){records=[];}renderTable();}
+async function saveRecords(){try{await window.storage.set('hma-records',JSON.stringify(records));}catch(e){}}
+async function loadImageRegistry(){
+  try{const r=await window.storage.get('hma-images-v2');if(r)IMAGE_REGISTRY=JSON.parse(r.value);}
+  catch(e){try{const r2=await window.storage.get('hma-images');if(r2)IMAGE_REGISTRY=JSON.parse(r2.value);}catch(e2){IMAGE_REGISTRY={};}}
+  // Fill in bundled images for any not already customized
+  Object.keys(DEFAULT_IMAGES).forEach(id=>{if(!IMAGE_REGISTRY[id])IMAGE_REGISTRY[id]=DEFAULT_IMAGES[id];});
+}
+async function saveImageRegistry(){try{await window.storage.set('hma-images-v2',JSON.stringify(IMAGE_REGISTRY));}catch(e){}}
+
+function showTab(t){
+  ['records','new','exercises'].forEach(x=>{document.getElementById('content-'+x).classList.add('hidden');document.getElementById('tab-'+x).classList.remove('active');});
+  document.getElementById('content-'+t).classList.remove('hidden');document.getElementById('tab-'+t).classList.add('active');
+}
+
+function buildScoreGrid(){
+  const g=document.getElementById('score-grid');
+  g.innerHTML=MOVEMENTS.map(m=>`
+    <div class="score-block" id="block-${m.key}">
+      <div class="score-block-title" id="block-title-${m.key}">${m.label}</div>
+      ${m.sides.map((s,i)=>`
+        <div class="score-side-wrap">
+          <div class="score-side-label">${s}</div>
+          <div class="score-row">${[1,2,3].map(v=>`<button class="score-btn" id="sb-${m.key}-${i}-${v}" onclick="selectScore('${m.key}',${i},${v})">${v}</button>`).join('')}</div>
+          <hr class="score-divider">
+          <div class="score-row">
+            <button class="score-btn pain-btn" id="sb-${m.key}-${i}-0" onclick="selectPain('${m.key}',${i},false)" style="flex:1">0</button>
+            <button class="score-btn pain-btn" id="sb-${m.key}-${i}-p" onclick="selectPain('${m.key}',${i},true)" style="flex:2">Pain</button>
+          </div>
+        </div>`).join('')}
+      <div class="score-final">Final: <span id="sc-${m.key}-final">—</span></div>
+      <div class="hyper-toggle">
+        <button class="hyper-btn" id="hyper-btn-${m.key}" onclick="toggleHyper('${m.key}')">⬡ Hypermobile</button>
+      </div>
+    </div>`).join('');
+  document.getElementById('f-date').valueAsDate=new Date();
+}
+
+function toggleHyper(key){
+  hypermobile[key]=!hypermobile[key];
+  const btn=document.getElementById('hyper-btn-'+key);
+  const block=document.getElementById('block-'+key);
+  btn.classList.toggle('active',hypermobile[key]);
+  block.classList.toggle('hypermobile',hypermobile[key]);
+  updateHyperSummary();
+}
+
+function updateHyperSummary(){
+  const active=MOVEMENTS.filter(m=>hypermobile[m.key]).map(m=>m.label);
+  const el=document.getElementById('hyper-summary');
+  if(active.length){
+    el.classList.add('visible');
+    document.getElementById('hyper-summary-text').textContent=`Hypermobility flagged (${active.join(', ')}) — stability-focused exercises will be auto-suggested.`;
+  } else {
+    el.classList.remove('visible');
+  }
+}
+
+function setHypermobile(snap){
+  MOVEMENTS.forEach(m=>{
+    hypermobile[m.key]=snap[m.key]||false;
+    const btn=document.getElementById('hyper-btn-'+m.key);
+    const block=document.getElementById('block-'+m.key);
+    if(btn)btn.classList.toggle('active',hypermobile[m.key]);
+    if(block)block.classList.toggle('hypermobile',hypermobile[m.key]);
+  });
+  updateHyperSummary();
+}
+
+function selectScore(k,s,v){scores[k][s]={val:v,pain:false};refreshScoreBtns(k,s);updateTotals();}
+function selectPain(k,s,p){
+  if(p&&scores[k][s].pain){scores[k][s]={val:null,pain:false};}
+  else{scores[k][s]={val:0,pain:p};}
+  refreshScoreBtns(k,s);updateTotals();
+}
+function refreshScoreBtns(k,s){
+  const sc=scores[k][s];
+  [1,2,3].forEach(v=>{const b=document.getElementById(`sb-${k}-${s}-${v}`);if(b)b.className='score-btn'+(sc.val===v&&!sc.pain?' selected-score':'');});
+  const b0=document.getElementById(`sb-${k}-${s}-0`),bp=document.getElementById(`sb-${k}-${s}-p`);
+  if(b0)b0.className='score-btn pain-btn'+(sc.val===0&&!sc.pain?' selected-pain':'');
+  if(bp)bp.className='score-btn pain-btn'+(sc.pain?' selected-pain':'');
+}
+function checkPainActive(){let p=false;MOVEMENTS.forEach(m=>{scores[m.key].forEach(s=>{if(s.pain)p=true;});});return p;}
+function updateTotals(){
+  let total=0;
+  MOVEMENTS.forEach(m=>{
+    const a=scores[m.key][0].val,b=scores[m.key][1].val;
+    const fin=(a!==null&&b!==null)?Math.min(a,b):null;
+    const el=document.getElementById(`sc-${m.key}-final`);
+    if(fin!==null){el.innerHTML=`<span class="${fin===0?'zero':''}">${fin}</span>`;total+=fin;}
+    else{const p=a!==null?a:(b!==null?b:null);el.innerHTML=p!==null?`<span style="background:#888">${p}?</span>`:'—';if(p!==null)total+=p;}
+  });
+  document.getElementById('total-num').textContent=total;
+  const risk=total<=5?'high':total<=10?'mod':'low';
+  document.getElementById('total-display').className='total-display '+risk;
+  document.getElementById('total-label').textContent='Running Total';
+  document.getElementById('risk-desc').textContent={high:'High opportunity for improvement',mod:'Moderate',low:'Low risk'}[risk];
+  const hasPain=checkPainActive();
+  document.getElementById('pain-flag').classList.toggle('visible',hasPain);
+  const ps=document.getElementById('f-plan'),pa=document.getElementById('f-pa');
+  if(hasPain){ps.value='No';ps.disabled=true;ps.className='field-locked-no';pa.value='Yes';pa.disabled=true;pa.className='field-locked-yes';}
+  else{ps.value='No';ps.disabled=false;ps.className='';pa.value='No';pa.disabled=false;pa.className='';}
+}
+
+function getScoresSnapshot(){const s={};MOVEMENTS.forEach(m=>{s[m.key]=[{...scores[m.key][0]},{...scores[m.key][1]}];});return s;}
+function getHyperSnapshot(){const h={};MOVEMENTS.forEach(m=>{h[m.key]=hypermobile[m.key];});return h;}
+function loadScoresSnapshot(snap){MOVEMENTS.forEach(m=>{scores[m.key]=[{...snap[m.key][0]},{...snap[m.key][1]}];refreshScoreBtns(m.key,0);refreshScoreBtns(m.key,1);});updateTotals();}
+function calcTotal(snap){let t=0;MOVEMENTS.forEach(m=>{const a=snap[m.key][0].val,b=snap[m.key][1].val;if(a!==null&&b!==null)t+=Math.min(a,b);});return t;}
+
+function getFormData(){
+  const snap=getScoresSnapshot();
+  const fn=document.getElementById('f-fname').value.trim(),ln=document.getElementById('f-lname').value.trim();
+  return{id:editingId||Date.now().toString(),fname:fn,lname:ln,name:(fn+' '+ln).trim(),
+    company:document.getElementById('f-company').value.trim(),dept:document.getElementById('f-dept').value.trim(),
+    shift:document.getElementById('f-shift').value,date:document.getElementById('f-date').value,
+    location:document.getElementById('f-location').value.trim(),type:document.getElementById('f-type').value,
+    scores:snap,total:calcTotal(snap),hypermobile:getHyperSnapshot(),
+    notes:document.getElementById('f-notes').value.trim(),
+    followup:document.getElementById('f-followup').value,retest:document.getElementById('f-retest').value,
+    plan:document.getElementById('f-plan').value,pa:document.getElementById('f-pa').value};
+}
+
+function saveRecord(){const d=getFormData();if(!d.name.trim()){alert('Please enter employee name.');return;}if(editingId){const i=records.findIndex(r=>r.id===editingId);if(i>-1)records[i]=d;}else records.unshift(d);saveRecords();clearForm();renderTable();showTab('records');}
+function saveAndBuildSheet(){const d=getFormData();if(!d.name.trim()){alert('Please enter employee name.');return;}if(editingId){const i=records.findIndex(r=>r.id===editingId);if(i>-1)records[i]=d;}else records.unshift(d);saveRecords();clearForm();renderTable();openExerciseBuilder(d);}
+
+function clearForm(){
+  editingId=null;document.getElementById('form-title').textContent='New Assessment';
+  ['f-fname','f-lname','f-dept','f-location','f-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-company').value='Hendrickson';document.getElementById('f-shift').value='1st';
+  document.getElementById('f-type').value='Initial';document.getElementById('f-followup').value='6';document.getElementById('f-retest').value='4';
+  const ps=document.getElementById('f-plan'),pa=document.getElementById('f-pa');
+  ps.value='No';ps.disabled=false;ps.className='';pa.value='No';pa.disabled=false;pa.className='';
+  document.getElementById('f-date').valueAsDate=new Date();
+  document.getElementById('pain-flag').classList.remove('visible');
+  document.getElementById('hyper-summary').classList.remove('visible');
+  MOVEMENTS.forEach(m=>{
+    scores[m.key]=[{val:null,pain:false},{val:null,pain:false}];
+    hypermobile[m.key]=false;
+    refreshScoreBtns(m.key,0);refreshScoreBtns(m.key,1);
+    document.getElementById(`sc-${m.key}-final`).textContent='—';
+    const btn=document.getElementById('hyper-btn-'+m.key);
+    const block=document.getElementById('block-'+m.key);
+    if(btn)btn.classList.remove('active');
+    if(block)block.classList.remove('hypermobile');
+  });
+  document.getElementById('total-num').textContent='0';document.getElementById('total-label').textContent='Running Total';
+  document.getElementById('risk-desc').textContent='Score movements above';document.getElementById('total-display').className='total-display';
+}
+
+function editRecord(id){
+  const r=records.find(x=>x.id===id);if(!r)return;editingId=id;
+  document.getElementById('form-title').textContent='Edit Assessment';
+  document.getElementById('f-fname').value=r.fname||r.name.split(' ')[0]||'';
+  document.getElementById('f-lname').value=r.lname||r.name.split(' ').slice(1).join(' ')||'';
+  document.getElementById('f-company').value=r.company;document.getElementById('f-dept').value=r.dept||'';
+  document.getElementById('f-shift').value=r.shift||'1st';document.getElementById('f-date').value=r.date;
+  document.getElementById('f-location').value=r.location||'';document.getElementById('f-type').value=r.type;
+  document.getElementById('f-notes').value=r.notes||'';document.getElementById('f-followup').value=r.followup||'6';
+  document.getElementById('f-retest').value=r.retest||'4';
+  loadScoresSnapshot(r.scores);
+  if(r.hypermobile)setHypermobile(r.hypermobile);
+  showTab('new');
+}
+function deleteRecord(id){if(!confirm('Delete this record?'))return;records=records.filter(r=>r.id!==id);saveRecords();renderTable();}
+
+function renderTable(){
+  const q=(document.getElementById('search-input')?.value||'').toLowerCase();
+  const tb=document.getElementById('emp-tbody');
+  const f=records.filter(r=>(r.name||'').toLowerCase().includes(q)||(r.company||'').toLowerCase().includes(q)||(r.dept||'').toLowerCase().includes(q));
+  if(!f.length){tb.innerHTML=`<tr><td colspan="9" style="text-align:center;color:#888;padding:20px">No records yet. Click "+ New Assessment" to get started.</td></tr>`;return;}
+  tb.innerHTML=f.map(r=>{
+    const risk=r.total<=5?'high':r.total<=10?'mod':'low';
+    const fu=r.followup&&r.date?getFuDate(r.date,parseInt(r.followup)):'—';
+    const hyperMvmts=r.hypermobile?MOVEMENTS.filter(m=>r.hypermobile[m.key]).map(m=>m.label.split(' ')[0]):[];
+    const hyperBadge=hyperMvmts.length?`<span class="badge badge-hyper" title="Hypermobility: ${hyperMvmts.join(', ')}">⬡ ${hyperMvmts.length}</span>`:'—';
+    return`<tr><td><strong>${r.name}</strong><br><span style="font-size:15px;color:#777">${r.dept||''}</span></td>
+      <td>${r.date}</td><td style="font-size:18px">${r.shift||'—'} Shift</td>
+      <td><span style="font-size:18px;background:${r.type==='Initial'?'#e3e3e3':'#fde8e8'};padding:2px 7px;border-radius:2px;font-weight:700">${r.type}</span></td>
+      <td style="font-weight:900;font-size:25px;color:#1a1a1a">${r.total}<span style="font-size:15px;font-weight:400;color:#999">/15</span></td>
+      <td><span class="badge badge-${risk}">${{high:'High',mod:'Moderate',low:'Low'}[risk]}</span></td>
+      <td>${hyperBadge}</td>
+      <td style="font-size:18px">${fu}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-outline btn-sm" onclick="editRecord('${r.id}')" style="margin-right:3px">Edit</button>
+        <button class="btn btn-red btn-sm" onclick="openExerciseBuilderById('${r.id}')" style="margin-right:3px">Exercises</button>
+        <button class="btn btn-outline btn-sm" onclick="deleteRecord('${r.id}')" style="color:#b71c1c">Del</button>
+      </td></tr>`;
+  }).join('');
+}
+
+function getFuDate(d,w){const dt=new Date(d);dt.setDate(dt.getDate()+w*7);return dt.toLocaleDateString();}
+function openExerciseBuilderById(id){const r=records.find(x=>x.id===id);if(r)openExerciseBuilder(r);}
+
+function openExerciseBuilder(rec){
+  currentEmpForSheet=rec;
+  document.getElementById('ex-emp-name').value=rec?rec.name:'';
+  document.getElementById('ex-date').value=rec?rec.date:new Date().toISOString().split('T')[0];
+  selectedExercises={};suggestedKeys={};hyperSuggestedKeys={};
+
+  if(rec){
+    const hyper=rec.hypermobile||{};
+    MOVEMENTS.forEach(m=>{
+      const s=rec.scores[m.key];
+      const fin=Math.min(s[0].val??3,s[1].val??3);
+      const isHyper=hyper[m.key]||false;
+
+      if(isHyper){
+        hyperSuggestedKeys[m.key]=true;
+        (HYPER_SUGGEST[m.key]||[]).forEach(id=>selectedExercises[id]=true);
+      } else if(fin<=2){
+        suggestedKeys[m.key]=true;
+        (MOBILITY_SUGGEST[m.key]||[]).forEach(id=>selectedExercises[id]=true);
+        if(m.key==='sld')BALANCE_EX.slice(0,2).forEach(e=>selectedExercises[e.id]=true);
+        if(m.key==='trunk')CORE_EX.slice(0,2).forEach(e=>selectedExercises[e.id]=true);
+      }
+    });
+  }
+  buildExerciseUI();
+  document.getElementById('ex-builder').classList.remove('hidden');
+  document.getElementById('ex-print').classList.add('hidden');
+  showTab('exercises');
+}
+
+function imgTag(id,forPrint=false){
+  const src=IMAGE_REGISTRY[id];if(!src)return '';
+  return forPrint?`<img src="${src}" class="print-ex-img" alt="">`:`<img src="${src}" class="ex-thumb" alt="">`;
+}
+
+function buildExerciseUI(){
+  const cats=[
+    {key:'lunge',data:EXERCISES.lunge},
+    {key:'sld',data:{...EXERCISES.sld,exercises:[...EXERCISES.sld.exercises,...BALANCE_EX]}},
+    {key:'shoulder',data:EXERCISES.shoulder},
+    {key:'trunk',data:{...EXERCISES.trunk,exercises:[...EXERCISES.trunk.exercises,...CORE_EX]}},
+    {key:'cervical',data:EXERCISES.cervical}
+  ];
+  document.getElementById('ex-categories').innerHTML=cats.map(({key,data})=>{
+    const isHyper=hyperSuggestedKeys[key];
+    const isMobility=suggestedKeys[key];
+    let headerClass='', headerLabel=data.label;
+    if(isHyper){headerClass='hyper-suggested';headerLabel+=` &nbsp;⬡ Stability Focus (Hypermobility)`;}
+    else if(isMobility){headerClass='suggested';headerLabel+=` &nbsp;⚑ Auto-suggested`;}
+    return`<div class="ex-category">
+      <div class="ex-cat-header ${headerClass}">
+        <span>${headerLabel}</span>
+        <span style="font-size:15px;font-weight:400;opacity:.7">Click to select / deselect</span>
+      </div>
+      <div class="ex-grid">${data.exercises.map(ex=>`
+        <div class="ex-item ${selectedExercises[ex.id]?'selected':''}" onclick="toggleEx('${ex.id}')" id="exitem-${ex.id}">
+          <div class="ex-check">${selectedExercises[ex.id]?'✓':''}</div>
+          ${imgTag(ex.id)}
+          <div>${ex.name}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleEx(id){
+  if(selectedExercises[id])delete selectedExercises[id];else selectedExercises[id]=true;
+  const el=document.getElementById('exitem-'+id);
+  if(el){el.classList.toggle('selected',!!selectedExercises[id]);el.querySelector('.ex-check').textContent=selectedExercises[id]?'✓':'';}
+}
+function clearSelections(){selectedExercises={};buildExerciseUI();}
+function getAllExercises(){const a=[];Object.values(EXERCISES).forEach(c=>a.push(...c.exercises));a.push(...BALANCE_EX,...CORE_EX);return a;}
+
+function buildPrintSheet(){
+  const all=getAllExercises(),chosen=all.filter(e=>selectedExercises[e.id]);
+  if(!chosen.length){alert('Please select at least one exercise.');return;}
+  const name=document.getElementById('ex-emp-name').value||'Employee';
+  const date=document.getElementById('ex-date').value;
+  const prov=document.getElementById('ex-provider').value;
+  const rec=currentEmpForSheet;
+  const hyperMvmts=rec?.hypermobile?MOVEMENTS.filter(m=>rec.hypermobile[m.key]).map(m=>m.label):[];
+  const hyperNote=hyperMvmts.length?`<div class="print-hyper-note">⬡ Hypermobility noted in: ${hyperMvmts.join(', ')} — exercises selected for stability focus in flagged areas.</div>`:'';
+  document.getElementById('print-sheet').innerHTML=`
+    <div class="print-header">
+      <div><img src="/images/ati-logo.jpg" style="height:80px;width:auto"></div>
+      <div class="print-title">Corrective Exercise Plan</div>
+    </div>
+    <div class="print-emp-info">
+      <div class="print-info-item"><div class="print-info-label">Employee</div>${name}</div>
+      <div class="print-info-item"><div class="print-info-label">Assessment Date</div>${date}</div>
+      <div class="print-info-item"><div class="print-info-label">Company</div>${rec?.company||'ATI Worksite Solutions'}</div>
+      <div class="print-info-item"><div class="print-info-label">Provider</div>${prov||'ATI Worksite Solutions'}</div>
+      <div class="print-info-item" style="grid-column:span 2"><div class="print-info-label">Follow-Up Assessment Date</div>${rec?.followup&&rec?.date?getFuDate(rec.date,parseInt(rec.followup)):'—'}</div>
+      <div class="print-info-item" style="grid-column:span 2"><div class="print-info-label">Re-Assessment Date</div>${rec?.retest&&rec?.date?(()=>{const d=new Date(rec.date);d.setMonth(d.getMonth()+parseInt(rec.retest));return d.toLocaleDateString();})():'—'}</div>
+      ${rec?`<div class="print-info-item" style="grid-column:span 4"><div class="print-info-label">HMA Score</div><strong>${rec.total}/15</strong></div>`:''}
+    </div>
+    ${hyperNote}
+    <div class="print-exercises">${chosen.map(ex=>`
+      <div class="print-ex-card">
+        ${imgTag(ex.id,true)}
+        <div class="print-ex-name">${ex.name}</div>
+        <div class="print-ex-inst">${ex.inst}</div>
+        <div class="print-ex-sets"><strong>Sets/Reps:</strong> ${ex.sets} &nbsp; <strong>Frequency:</strong> Daily</div>
+      </div>`).join('')}
+    </div>
+    <div class="print-footer">ATI Worksite Solutions — Hendrickson &nbsp;|&nbsp; Generated ${new Date().toLocaleDateString()} &nbsp;|&nbsp; These exercises are personalized recommendations. Please perform as directed by your provider.</div>`;
+  document.getElementById('ex-builder').classList.add('hidden');
+  document.getElementById('ex-print').classList.remove('hidden');
+}
+
+function backToBuilder(){document.getElementById('ex-builder').classList.remove('hidden');document.getElementById('ex-print').classList.add('hidden');}
+
+function setupImageUpload(){
+  const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.style.display='none';inp.id='img-file-input';document.body.appendChild(inp);
+  let pendingId=null;
+  inp.onchange=async(e)=>{const file=e.target.files[0];if(!file||!pendingId)return;const reader=new FileReader();reader.onload=async(ev)=>{IMAGE_REGISTRY[pendingId]=ev.target.result;await saveImageRegistry();buildExerciseUI();};reader.readAsDataURL(file);inp.value='';};
+  window.assignImg=(id)=>{pendingId=id;inp.click();};
+}
+
+function toggleDark(){
+  const dark=document.body.classList.toggle('dark');
+  localStorage.setItem('hma-dark',dark?'1':'0');
+  document.getElementById('dark-toggle').textContent=dark?'Light':'Dark';
+}
+
+async function init(){
+  if(localStorage.getItem('hma-dark')==='1'){
+    document.body.classList.add('dark');
+    document.getElementById('dark-toggle').textContent='Light';
+  }
+  await loadImageRegistry();
+  buildScoreGrid();
+  clearForm();
+  loadRecords();
+  setupImageUpload();
+}
+init();
+</script>
+</body>
+</html>
