@@ -235,11 +235,15 @@ body.dark .print-footer{color:#777!important}
 
 <div class="content" id="content-records">
   <div class="card">
-    <div class="card-title">HMA Records</div>
-    <div class="search-bar" style="flex-wrap:wrap">
+    <div class="card-title" style="display:flex;align-items:center">
+      <span>HMA Records</span>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.35)" onclick="exportRecords()" title="Download all records as a JSON file">↓ Export</button>
+        <label class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.35);cursor:pointer" title="Load records from a previously exported JSON file">↑ Import<input type="file" id="import-input" accept=".json" style="display:none" onchange="importRecords(event)"></label>
+      </div>
+    </div>
+    <div class="search-bar">
       <input type="text" id="search-input" placeholder="Search by name, company, or department..." oninput="renderTable()">
-      <button class="btn btn-outline btn-sm" onclick="exportRecords()" title="Download all records as a JSON file">↓ Export</button>
-      <label class="btn btn-outline btn-sm" style="cursor:pointer" title="Load records from a previously exported JSON file">↑ Import<input type="file" id="import-input" accept=".json" style="display:none" onchange="importRecords(event)"></label>
       <button class="btn btn-red btn-sm" onclick="showTab('new')">+ New Assessment</button>
     </div>
     <table class="emp-table">
