@@ -152,10 +152,12 @@ body{font-family:'Barlow',Arial,sans-serif;font-size:22px;background:#1a1a1a;col
 @media print{
   body{background:#fff}
   .no-print{display:none!important}
+  .header{display:none!important}
+  .tabs{display:none!important}
   .print-preview{border:none;padding:10px}
 }
 /* DARK MODE */
-.dark-toggle{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);font-family:'Barlow Condensed',sans-serif;font-size:16px;margin-left:12px}
+.dark-toggle{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);font-family:'Barlow Condensed',sans-serif;font-size:16px;margin-left:auto}
 .dark-toggle:hover{background:rgba(255,255,255,.28)}
 body.dark{background:#111;color:#d8d8d8}
 body.dark .content{background:#181818}
@@ -221,7 +223,7 @@ body.dark .print-footer{color:#777!important}
 <div class="app">
 <div class="header">
   <div class="header-logo" style="background:#fff;border-radius:3px;padding:3px 10px;"><img src="/images/ati-logo.jpg" alt="ATI Worksite Solutions" style="height:36px;width:auto"></div>
-  <h1>HMA Tracker</h1>
+  <h1>Human Movement Assessment</h1>
   <button class="btn btn-sm dark-toggle" id="dark-toggle" onclick="toggleDark()">Dark</button>
 </div>
 <div class="tabs no-print">
@@ -234,8 +236,10 @@ body.dark .print-footer{color:#777!important}
 <div class="content" id="content-records">
   <div class="card">
     <div class="card-title">HMA Records</div>
-    <div class="search-bar">
+    <div class="search-bar" style="flex-wrap:wrap">
       <input type="text" id="search-input" placeholder="Search by name, company, or department..." oninput="renderTable()">
+      <button class="btn btn-outline btn-sm" onclick="exportRecords()" title="Download all records as a JSON file">↓ Export</button>
+      <label class="btn btn-outline btn-sm" style="cursor:pointer" title="Load records from a previously exported JSON file">↑ Import<input type="file" id="import-input" accept=".json" style="display:none" onchange="importRecords(event)"></label>
       <button class="btn btn-red btn-sm" onclick="showTab('new')">+ New Assessment</button>
     </div>
     <table class="emp-table">
@@ -841,6 +845,45 @@ function toggleDark(){
   const dark=document.body.classList.toggle('dark');
   localStorage.setItem('hma-dark',dark?'1':'0');
   document.getElementById('dark-toggle').textContent=dark?'Light':'Dark';
+}
+
+function exportRecords(){
+  if(!records.length){alert('No records to export.');return;}
+  const blob=new Blob([JSON.stringify(records,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`hma-records-${new Date().toISOString().split('T')[0]}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function importRecords(event){
+  const file=event.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const imported=JSON.parse(e.target.result);
+      if(!Array.isArray(imported)||!imported.length){alert('No valid records found in this file.');event.target.value='';return;}
+      const existingIds=new Set(records.map(r=>r.id));
+      const newRecs=imported.filter(r=>r.id&&!existingIds.has(r.id));
+      const dupes=imported.length-newRecs.length;
+      if(!newRecs.length){alert(`All ${imported.length} record(s) in this file already exist locally. Nothing imported.`);event.target.value='';return;}
+      const msg=`Import ${newRecs.length} record(s)?${dupes?`\n(${dupes} duplicate(s) skipped)`:''}\n\nThey will be added to your existing records.`;
+      if(!confirm(msg)){event.target.value='';return;}
+      records=[...newRecs,...records];
+      saveRecords();
+      renderTable();
+      alert(`${newRecs.length} record(s) imported successfully.`);
+    }catch(err){
+      alert('Could not read file. Make sure it is a valid HMA export (.json) file.');
+    }
+    event.target.value='';
+  };
+  reader.readAsText(file);
 }
 
 function libCard(ex){
