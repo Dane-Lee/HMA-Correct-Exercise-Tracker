@@ -224,6 +224,37 @@ body.dark .print-preview,body.dark .print-preview *{background:#fff!important;co
 body.dark .print-ex-name{color:#cc2200!important}
 body.dark .print-info-label{color:#555!important}
 body.dark .print-footer{color:#777!important}
+body.dark #paste-import-panel{background:#1e1e1e;border-color:#444;color:#d8d8d8}
+/* MOBILE RESPONSIVE */
+/* Tabs: always swipe-scrollable — hidden scrollbar, no shrinking. On desktop content fits so nothing changes visually. */
+.tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;white-space:nowrap}
+@media (max-width:900px){
+  .tab{padding:11px 18px;font-size:20px}
+}
+@media (max-width:768px){
+  .score-grid{grid-template-columns:repeat(3,1fr)}
+  .ex-grid{grid-template-columns:repeat(2,1fr)}
+  .lib-grid{grid-template-columns:repeat(2,1fr)}
+  .tab{padding:10px 14px;font-size:19px}
+}
+@media (max-width:480px){
+  .header{padding:10px 14px;gap:10px}
+  .header h1{font-size:22px}
+  .header-logo img{height:34px}
+  .header-sub{display:none}
+  .content{padding:14px}
+  .card{padding:16px;border-radius:6px}
+  .card-title{font-size:20px;margin:-16px -16px 16px;padding:10px 14px}
+  .tab{padding:9px 12px;font-size:17px}
+  .score-grid{grid-template-columns:repeat(2,1fr);gap:8px}
+  .score-block-title{font-size:15px}
+  #content-records .card{overflow-x:auto}
+  .ex-grid{grid-template-columns:1fr 1fr}
+  .lib-grid{grid-template-columns:1fr}
+  .search-bar{flex-wrap:wrap;gap:8px}
+}
 </style>
 </head>
 <body>
@@ -244,7 +275,9 @@ body.dark .print-footer{color:#777!important}
   <div class="card">
     <div class="card-title" style="display:flex;align-items:center">
       <span>HMA Records</span>
-      <div style="margin-left:auto;display:flex;gap:8px">
+      <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.35)" onclick="copyRecords(event)" title="Copy all records as JSON to clipboard">Copy JSON</button>
+        <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.35)" onclick="togglePastePanel()" title="Import records by pasting JSON text">Paste JSON</button>
         <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.35)" onclick="exportRecords()" title="Download all records as a JSON file">↓ Export</button>
         <label class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.35);cursor:pointer" title="Load records from a previously exported JSON file">↑ Import<input type="file" id="import-input" accept=".json" style="display:none" onchange="importRecords(event)"></label>
       </div>
@@ -252,6 +285,14 @@ body.dark .print-footer{color:#777!important}
     <div class="search-bar">
       <input type="text" id="search-input" placeholder="Search by name, company, or department..." oninput="renderTable()">
       <button class="btn btn-red btn-sm" onclick="showTab('new')">+ New Assessment</button>
+    </div>
+    <div id="paste-import-panel" class="hidden" style="background:#f8f8f8;border:1.5px solid #ddd;border-radius:6px;padding:14px;margin-bottom:16px">
+      <div style="font-size:18px;font-weight:700;text-transform:uppercase;color:#555;letter-spacing:.5px;margin-bottom:8px;font-family:'Barlow Condensed',sans-serif">Paste JSON to Import</div>
+      <textarea id="paste-json-input" class="notes-area" rows="4" style="width:100%;font-size:14px;font-family:monospace" placeholder="Paste exported JSON here..."></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn btn-red btn-sm" onclick="importFromText()">Import</button>
+        <button class="btn btn-outline btn-sm" onclick="togglePastePanel()">Cancel</button>
+      </div>
     </div>
     <table class="emp-table">
       <thead><tr><th>Name</th><th>Date</th><th>Shift</th><th>Type</th><th>Score</th><th>Risk</th><th>Flags</th><th>Follow-up</th><th>Actions</th></tr></thead>
@@ -939,6 +980,52 @@ function importRecords(event){
     event.target.value='';
   };
   reader.readAsText(file);
+}
+
+function copyRecords(evt){
+  if(!records.length){alert('No records to copy.');return;}
+  const json=JSON.stringify(records,null,2);
+  const btn=evt.currentTarget;
+  const orig=btn.textContent;
+  const done=()=>{btn.textContent='✓ Copied!';setTimeout(()=>{btn.textContent=orig;},2000);};
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(json).then(done).catch(()=>{fallbackCopy(json);done();});
+  }else{fallbackCopy(json);done();}
+}
+function fallbackCopy(text){
+  const ta=document.createElement('textarea');
+  ta.value=text;ta.style.cssText='position:fixed;top:0;left:0;opacity:0;';
+  document.body.appendChild(ta);ta.select();
+  try{document.execCommand('copy');}catch(e){}
+  document.body.removeChild(ta);
+}
+function togglePastePanel(){
+  const p=document.getElementById('paste-import-panel');
+  p.classList.toggle('hidden');
+  if(!p.classList.contains('hidden')){
+    document.getElementById('paste-json-input').value='';
+    document.getElementById('paste-json-input').focus();
+  }
+}
+function importFromText(){
+  const text=document.getElementById('paste-json-input').value.trim();
+  if(!text){alert('Please paste JSON text first.');return;}
+  try{
+    const imported=JSON.parse(text);
+    if(!Array.isArray(imported)||!imported.length){alert('No valid records found in pasted text.');return;}
+    const existingIds=new Set(records.map(r=>r.id));
+    const newRecs=imported.filter(r=>r.id&&!existingIds.has(r.id));
+    const dupes=imported.length-newRecs.length;
+    if(!newRecs.length){alert(`All ${imported.length} record(s) already exist locally. Nothing imported.`);return;}
+    const msg=`Import ${newRecs.length} record(s)?${dupes?`\n(${dupes} duplicate(s) skipped)`:''}\n\nThey will be added to your existing records.`;
+    if(!confirm(msg))return;
+    records=[...newRecs,...records];
+    saveRecords();renderTable();
+    document.getElementById('paste-import-panel').classList.add('hidden');
+    alert(`${newRecs.length} record(s) imported successfully.`);
+  }catch(err){
+    alert('Could not parse text. Make sure you pasted valid HMA exported JSON.');
+  }
 }
 
 function exTypeBadge(id,small=false){
