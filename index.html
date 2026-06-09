@@ -238,6 +238,11 @@ body.dark #paste-import-panel{background:#1e1e1e;border-color:#444;color:#d8d8d8
   .ex-grid{grid-template-columns:repeat(2,1fr)}
   .lib-grid{grid-template-columns:repeat(2,1fr)}
   .tab{padding:10px 14px;font-size:19px}
+  /* Hide Shift, Type, Flags, Follow-up on tablet — keep Name/Date/Score/Risk/Actions */
+  .emp-table th:nth-child(3),.emp-table td:nth-child(3),
+  .emp-table th:nth-child(4),.emp-table td:nth-child(4),
+  .emp-table th:nth-child(7),.emp-table td:nth-child(7),
+  .emp-table th:nth-child(8),.emp-table td:nth-child(8){display:none}
 }
 @media (max-width:480px){
   .header{padding:10px 14px;gap:10px}
@@ -250,7 +255,9 @@ body.dark #paste-import-panel{background:#1e1e1e;border-color:#444;color:#d8d8d8
   .tab{padding:9px 12px;font-size:17px}
   .score-grid{grid-template-columns:repeat(2,1fr);gap:8px}
   .score-block-title{font-size:15px}
-  #content-records .card{overflow-x:auto}
+  /* Also hide Date on phone — keep Name/Score/Risk/Actions */
+  .emp-table th:nth-child(2),.emp-table td:nth-child(2){display:none}
+  .emp-table th,.emp-table td{padding:10px 10px;font-size:17px}
   .ex-grid{grid-template-columns:1fr 1fr}
   .lib-grid{grid-template-columns:1fr}
   .search-bar{flex-wrap:wrap;gap:8px}
@@ -275,9 +282,7 @@ body.dark #paste-import-panel{background:#1e1e1e;border-color:#444;color:#d8d8d8
   <div class="card">
     <div class="card-title" style="display:flex;align-items:center">
       <span>HMA Records</span>
-      <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.35)" onclick="copyRecords(event)" title="Copy all records as JSON to clipboard">Copy JSON</button>
-        <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.35)" onclick="togglePastePanel()" title="Import records by pasting JSON text">Paste JSON</button>
+      <div style="margin-left:auto;display:flex;gap:8px">
         <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.35)" onclick="exportRecords()" title="Download all records as a JSON file">↓ Export</button>
         <label class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.35);cursor:pointer" title="Load records from a previously exported JSON file">↑ Import<input type="file" id="import-input" accept=".json" style="display:none" onchange="importRecords(event)"></label>
       </div>
@@ -285,6 +290,10 @@ body.dark #paste-import-panel{background:#1e1e1e;border-color:#444;color:#d8d8d8
     <div class="search-bar">
       <input type="text" id="search-input" placeholder="Search by name, company, or department..." oninput="renderTable()">
       <button class="btn btn-red btn-sm" onclick="showTab('new')">+ New Assessment</button>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin:-10px 0 14px">
+      <button class="btn btn-outline btn-sm" onclick="copyRecords(event)" title="Copy all records as JSON to clipboard" style="font-size:16px;padding:4px 12px;color:#777">Copy JSON</button>
+      <button class="btn btn-outline btn-sm" onclick="togglePastePanel()" title="Import records by pasting JSON text" style="font-size:16px;padding:4px 12px;color:#777">Paste JSON</button>
     </div>
     <div id="paste-import-panel" class="hidden" style="background:#f8f8f8;border:1.5px solid #ddd;border-radius:6px;padding:14px;margin-bottom:16px">
       <div style="font-size:18px;font-weight:700;text-transform:uppercase;color:#555;letter-spacing:.5px;margin-bottom:8px;font-family:'Barlow Condensed',sans-serif">Paste JSON to Import</div>
