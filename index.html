@@ -831,7 +831,7 @@ function buildPrintSheet(){
         ${imgTag(ex.id,true)}
         <div class="print-ex-name">${ex.name}</div>
         <div class="print-ex-inst">${ex.inst}</div>
-        <div class="print-ex-sets"><strong>Sets/Reps:</strong> ${customSetsReps[ex.id]||ex.sets} &nbsp; <strong>Frequency:</strong> Daily</div>
+        <div class="print-ex-sets"><div><strong>Sets/Reps:</strong> ${customSetsReps[ex.id]||ex.sets}</div><div><strong>Frequency:</strong> Daily</div></div>
       </div>`).join('')}
     </div>
     <div class="print-footer">ATI Worksite Solutions — Hendrickson &nbsp;|&nbsp; Generated ${new Date().toLocaleDateString()} &nbsp;|&nbsp; These exercises are personalized recommendations. Please perform as directed by your provider.</div>`;
