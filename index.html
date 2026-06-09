@@ -122,6 +122,13 @@ body{font-family:'Barlow',Arial,sans-serif;font-size:22px;background:#1a1a1a;col
 .print-info-item{border-bottom:1px solid #333;padding-bottom:2px}
 .print-info-label{font-size:15px;color:#555;text-transform:uppercase;font-weight:700}
 .print-exercises{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.ex-type-badge{display:inline-block;font-size:11px;font-weight:700;padding:1px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.3px;vertical-align:middle;margin-left:4px}
+.ex-type-flexibility{background:#e3f2fd;color:#1565c0}
+.ex-type-mobility{background:#fff3e0;color:#e65100}
+.ex-type-stability{background:#e8f5e9;color:#2e7d32}
+.print-section{margin-bottom:16px}
+.print-section-header{background:#1a1a1a;color:#fff;padding:6px 12px;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-left:4px solid #cc2200;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;font-family:'Barlow Condensed',sans-serif}
+.print-section-score{font-size:13px;font-weight:400;opacity:.75;letter-spacing:0}
 .print-ex-card{border:1px solid #ccc;border-radius:6px;padding:10px;font-size:18px;border-top:3px solid #cc2200;break-inside:avoid;page-break-inside:avoid}
 .print-ex-img{width:100%;height:120px;object-fit:contain;border-radius:4px;margin-bottom:6px;border:1px solid #eee;background:#f9f9f9}
 .print-ex-name{font-weight:700;font-size:18px;text-transform:uppercase;color:#cc2200;margin-bottom:4px;letter-spacing:.3px}
@@ -515,6 +522,15 @@ const CORE_EX=[
 ];
 
 const OA_CAUTION=new Set(['l3','l4','l5','l7','l8','s1','s2','b3','b4','b6','b8','b9','co5','co7']);
+const EX_TYPE={
+  l1:'flexibility',l2:'flexibility',l3:'mobility',l4:'stability',l5:'mobility',l6:'stability',l7:'stability',l8:'stability',l9:'stability',
+  s1:'flexibility',s2:'flexibility',s3:'stability',s4:'stability',s5:'stability',s6:'stability',s7:'stability',s8:'stability',s9:'flexibility',
+  sh1:'flexibility',sh2:'flexibility',sh3:'stability',sh4:'stability',sh5:'stability',sh6:'mobility',sh7:'stability',sh8:'stability',sh9:'flexibility',
+  t1:'flexibility',t2:'mobility',t3:'flexibility',t4:'stability',t5:'stability',t6:'mobility',t7:'mobility',t8:'mobility',
+  c1:'flexibility',c2:'flexibility',c3:'flexibility',c4:'mobility',c5:'stability',c6:'mobility',c7:'stability',c8:'stability',c9:'mobility',
+  b1:'stability',b2:'stability',b3:'stability',b4:'stability',b5:'stability',b6:'stability',b7:'stability',b8:'stability',b9:'mobility',
+  co1:'stability',co2:'stability',co3:'mobility',co4:'stability',co5:'stability',co6:'flexibility',co7:'mobility'
+};
 let records=[], editingId=null, selectedExercises={}, customSetsReps={}, suggestedKeys={}, hyperSuggestedKeys={}, currentEmpForSheet=null, oaActive=false, libraryBuilt=false;
 
 async function loadRecords(){try{const r=await window.storage.get('hma-records');if(r)records=JSON.parse(r.value);}catch(e){records=[];}renderTable();}
@@ -782,7 +798,7 @@ function buildExerciseUI(){
         return`<div class="ex-item ${selectedExercises[ex.id]?'selected':''} ${isCaution?'oa-caution':''}" onclick="toggleEx('${ex.id}')" id="exitem-${ex.id}">
           <div class="ex-check">${selectedExercises[ex.id]?'✓':''}</div>
           ${imgTag(ex.id)}
-          <div style="flex:1;min-width:0">${ex.name}${isCaution?'<span class="oa-caution-flag">⚠ OA</span>':''}</div>
+          <div style="flex:1;min-width:0">${ex.name}${isCaution?'<span class="oa-caution-flag">⚠ OA</span>':''}${exTypeBadge(ex.id,true)}</div>
           <div class="sets-reps-edit" onclick="event.stopPropagation()">
             <span class="sets-reps-label">Sets/Reps:</span>
             <input class="sets-reps-input" value="${setsVal}" placeholder="${setsPlaceholder}" oninput="setSetsReps('${ex.id}',this.value)" onclick="event.stopPropagation()">
@@ -827,15 +843,34 @@ function buildPrintSheet(){
       ${rec?`<div style="grid-column:span 4;text-align:center;padding:4px 0"><span style="display:inline-block;border-bottom:2px solid #cc2200;padding:0 24px 4px"><div class="print-info-label" style="font-size:13px">HMA Score</div><span style="font-size:32px;font-weight:900;font-family:'Barlow Condensed',sans-serif;color:#1a1a1a">${rec.total}<span style="font-size:18px;font-weight:400;color:#999">/15</span></span></span></div>`:''}
     </div>
     ${hyperNote}${oaNote}
-    <div class="print-exercises">${chosen.map(ex=>`
-      <div class="print-ex-card">
-        ${imgTag(ex.id,true)}
-        <div class="print-ex-name">${ex.name}</div>
-        <div class="print-ex-inst">${ex.inst}</div>
-        <div class="print-ex-sets"><div><strong>Sets/Reps:</strong> ${customSetsReps[ex.id]||ex.sets}</div><div><strong>Frequency:</strong> Daily</div></div>
-      </div>`).join('')}
-    </div>
-    <div class="print-footer">ATI Worksite Solutions — Hendrickson &nbsp;|&nbsp; Generated ${new Date().toLocaleDateString()} &nbsp;|&nbsp; These exercises are personalized recommendations. Please perform as directed by your provider.</div>`;
+    ${(()=>{
+      const PCATS=[
+        {key:'lunge',label:'Forward Lunge',ids:new Set(EXERCISES.lunge.exercises.map(e=>e.id))},
+        {key:'sld',label:'Single Leg Dip',ids:new Set([...EXERCISES.sld.exercises.map(e=>e.id),...BALANCE_EX.map(e=>e.id)])},
+        {key:'shoulder',label:'Shoulder Reach',ids:new Set(EXERCISES.shoulder.exercises.map(e=>e.id))},
+        {key:'trunk',label:'Trunk Rotation',ids:new Set([...EXERCISES.trunk.exercises.map(e=>e.id),...CORE_EX.map(e=>e.id)])},
+        {key:'cervical',label:'Cervical',ids:new Set(EXERCISES.cervical.exercises.map(e=>e.id))}
+      ];
+      return PCATS.map(cat=>{
+        const catEx=chosen.filter(e=>cat.ids.has(e.id));
+        if(!catEx.length)return'';
+        let scoreHtml='';
+        if(rec?.scores?.[cat.key]){const s=rec.scores[cat.key];const a=s[0]?.val,b=s[1]?.val;if(a!=null&&b!=null)scoreHtml=`<span class="print-section-score">Score: ${Math.min(a,b)}/3</span>`;}
+        const t=cat=>EX_TYPE[cat]||'';
+        return`<div class="print-section">
+          <div class="print-section-header"><span>${cat.label}</span>${scoreHtml}</div>
+          <div class="print-exercises">${catEx.map(ex=>{const tp=EX_TYPE[ex.id];const tBadge=tp?`<span class="ex-type-badge ex-type-${tp}">${tp[0].toUpperCase()+tp.slice(1)}</span>`:'';return`
+            <div class="print-ex-card">
+              ${imgTag(ex.id,true)}
+              <div class="print-ex-name">${ex.name}${tBadge}</div>
+              <div class="print-ex-inst">${ex.inst}</div>
+              <div class="print-ex-sets"><div><strong>Sets/Reps:</strong> ${customSetsReps[ex.id]||ex.sets}</div><div><strong>Frequency:</strong> Daily</div></div>
+            </div>`;}).join('')}
+          </div>
+        </div>`;
+      }).join('');
+    })()}
+    <div class="print-footer">ATI Worksite Solutions — Hendrickson &nbsp;|&nbsp; Generated ${new Date().toLocaleDateString()}<br>These exercises are personalized recommendations. Please perform as directed by your provider.</div>`;
   document.getElementById('ex-builder').classList.add('hidden');
   document.getElementById('ex-print').classList.remove('hidden');
   window.scrollTo({top:0,behavior:'smooth'});
@@ -906,10 +941,14 @@ function importRecords(event){
   reader.readAsText(file);
 }
 
+function exTypeBadge(id,small=false){
+  const t=EX_TYPE[id];if(!t)return'';
+  return`<span class="ex-type-badge ex-type-${t}"${small?' style="font-size:10px"':''}>${t[0].toUpperCase()+t.slice(1)}</span>`;
+}
 function libCard(ex){
   const src=IMAGE_REGISTRY[ex.id];
   const imgHtml=src?`<img class="lib-img" src="${src}" alt="">`:`<div class="lib-img-placeholder">No image</div>`;
-  return`<div class="lib-card">${imgHtml}<div class="lib-body"><div class="lib-name">${ex.name}</div><div class="lib-inst">${ex.inst}</div><div class="lib-sets">Sets/Reps: ${ex.sets}</div></div></div>`;
+  return`<div class="lib-card">${imgHtml}<div class="lib-body"><div class="lib-name">${ex.name}${exTypeBadge(ex.id)}</div><div class="lib-inst">${ex.inst}</div><div class="lib-sets">Sets/Reps: ${ex.sets}</div></div></div>`;
 }
 
 function buildLibrary(){
