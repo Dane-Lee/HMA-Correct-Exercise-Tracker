@@ -349,7 +349,7 @@ body.dark .print-footer{color:#777!important}
   <div id="ex-print" class="hidden">
     <div style="display:flex;gap:8px;margin-bottom:12px" class="no-print">
       <button class="btn btn-black" onclick="backToBuilder()">← Back to Builder</button>
-      <button class="btn btn-red" onclick="window.print()">Print / Save PDF</button>
+      <button class="btn btn-red" onclick="printSheet()">Print / Save PDF</button>
     </div>
     <div class="print-preview" id="print-sheet"></div>
   </div>
@@ -842,6 +842,17 @@ function buildPrintSheet(){
 }
 
 function backToBuilder(){document.getElementById('ex-builder').classList.remove('hidden');document.getElementById('ex-print').classList.add('hidden');}
+
+function printSheet(){
+  const name=document.getElementById('ex-emp-name').value.trim()||'Employee';
+  const raw=document.getElementById('ex-date').value;
+  let datePart='';
+  if(raw){const p=raw.split('-');if(p.length===3)datePart=`${parseInt(p[1])}-${parseInt(p[2])}-${p[0].slice(2)}`;}
+  const orig=document.title;
+  document.title=datePart?`${name} ${datePart}`:name;
+  window.addEventListener('afterprint',function restore(){document.title=orig;window.removeEventListener('afterprint',restore);});
+  window.print();
+}
 
 function setupImageUpload(){
   const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.style.display='none';inp.id='img-file-input';document.body.appendChild(inp);
