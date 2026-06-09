@@ -746,6 +746,7 @@ function openExerciseBuilder(rec){
   document.getElementById('ex-builder').classList.remove('hidden');
   document.getElementById('ex-print').classList.add('hidden');
   showTab('exercises');
+  window.scrollTo({top:0,behavior:'smooth'});
 }
 
 function imgTag(id,forPrint=false){
