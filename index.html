@@ -619,7 +619,7 @@ function updateTotals(){
   document.getElementById('pain-flag').classList.toggle('visible',hasPain);
   const ps=document.getElementById('f-plan'),pa=document.getElementById('f-pa');
   if(hasPain){ps.value='No';ps.disabled=true;ps.className='field-locked-no';pa.value='Yes';pa.disabled=true;pa.className='field-locked-yes';}
-  else{ps.value='No';ps.disabled=false;ps.className='';pa.value='No';pa.disabled=false;pa.className='';}
+  else{ps.value=total<13?'Yes':'No';ps.disabled=false;ps.className='';pa.value='No';pa.disabled=false;pa.className='';}
 }
 
 function getScoresSnapshot(){const s={};MOVEMENTS.forEach(m=>{s[m.key]=[{...scores[m.key][0]},{...scores[m.key][1]}];});return s;}
