@@ -26,9 +26,10 @@ body{font-family:'Barlow',Arial,sans-serif;font-size:22px;background:#1a1a1a;col
 .form-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px}
 .form-group{display:flex;flex-direction:column;gap:6px;flex:1;min-width:110px}
 .form-group label{font-size:19px;font-weight:700;text-transform:uppercase;color:#555;letter-spacing:.5px;font-family:'Barlow Condensed',sans-serif}
-.form-group input,.form-group select{border:none;border-bottom:2px solid #d0d0d0;border-radius:0;padding:8px 0;font-size:20px;width:100%;background:transparent;transition:border-color .2s;font-family:'Barlow',Arial,sans-serif}
+.form-group input:not([type="checkbox"]),.form-group select{border:none;border-bottom:2px solid #d0d0d0;border-radius:0;padding:8px 0;font-size:20px;width:100%;background:transparent;transition:border-color .2s;font-family:'Barlow',Arial,sans-serif}
+.form-group input[type="checkbox"]{width:18px;height:18px;border:none;padding:0;background:transparent;cursor:pointer;accent-color:#e65100}
 .form-group textarea{border:1.5px solid #d0d0d0;border-radius:6px;padding:10px 12px;font-size:20px;width:100%;background:#fafafa;transition:border-color .2s;font-family:'Barlow',Arial,sans-serif}
-.form-group input:focus,.form-group select:focus{outline:none;border-bottom-color:#cc2200}
+.form-group input:not([type="checkbox"]):focus,.form-group select:focus{outline:none;border-bottom-color:#cc2200}
 .form-group textarea:focus{outline:none;border-color:#cc2200}
 .pain-flag{display:none;background:#cc2200;color:#fff;font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:10px 18px;border-radius:6px;margin-bottom:14px;border-left:4px solid #000;align-items:center;gap:10px}
 .pain-flag.visible{display:flex}
@@ -67,6 +68,13 @@ body{font-family:'Barlow',Arial,sans-serif;font-size:22px;background:#1a1a1a;col
 .total-sub{font-size:18px;color:#666;margin-top:3px}
 .hyper-summary{display:none;background:#e8eeff;border:1px solid #1565c0;border-left:4px solid #1565c0;border-radius:6px;padding:10px 18px;margin-bottom:14px;font-size:18px;font-weight:700;color:#1565c0;text-transform:uppercase;letter-spacing:.5px}
 .hyper-summary.visible{display:flex;align-items:center;gap:10px}
+.oa-summary{display:none;background:#fff8e8;border:1px solid #e65100;border-left:4px solid #e65100;border-radius:6px;padding:10px 18px;margin-bottom:14px;font-size:18px;font-weight:700;color:#bf360c;text-transform:uppercase;letter-spacing:.5px}
+.oa-summary.visible{display:flex;align-items:center;gap:10px}
+.oa-caution-flag{display:inline-block;background:#fff3cd;color:#856404;border:1px solid #ffc107;border-radius:4px;font-size:12px;font-weight:700;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap}
+.ex-item.oa-caution{background:#fffdf0}
+.ex-item.oa-caution:hover{background:#fff8e0}
+.ex-item.oa-caution.selected{background:#fff0ee}
+.print-oa-note{background:#fff8e8;border:1px solid #e65100;border-radius:4px;padding:6px 10px;margin-bottom:10px;font-size:14px;color:#bf360c;font-weight:700}
 /* BUTTONS */
 .btn{padding:10px 22px;border:none;border-radius:6px;cursor:pointer;font-size:20px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;transition:all .18s;font-family:'Barlow Condensed',sans-serif}
 .btn-red{background:#cc2200;color:#fff}.btn-red:hover{background:#aa1a00;box-shadow:0 4px 12px rgba(204,34,0,.3)}
@@ -138,8 +146,8 @@ body.dark .content{background:#181818}
 body.dark .card{background:#242424;box-shadow:0 4px 16px rgba(0,0,0,.4),0 1px 4px rgba(0,0,0,.25)}
 body.dark .card-title{background:#111}
 body.dark .form-group label{color:#999}
-body.dark .form-group input,body.dark .form-group select{background:transparent;border-bottom-color:#555;color:#d8d8d8}
-body.dark .form-group input:focus,body.dark .form-group select:focus{border-bottom-color:#cc2200}
+body.dark .form-group input:not([type="checkbox"]),body.dark .form-group select{background:transparent;border-bottom-color:#555;color:#d8d8d8}
+body.dark .form-group input:not([type="checkbox"]):focus,body.dark .form-group select:focus{border-bottom-color:#cc2200}
 body.dark .form-group textarea{background:#1e1e1e;border-color:#444;color:#d8d8d8}
 body.dark .form-group textarea:focus{border-color:#cc2200}
 body.dark .notes-area{background:#1e1e1e;border-color:#444;color:#d8d8d8}
@@ -160,6 +168,9 @@ body.dark .total-display.low{background:#102210;border-left-color:#2e7d32}
 body.dark .total-num{color:#e8e8e8}
 body.dark .total-sub{color:#999}
 body.dark .hyper-summary{background:#0d1a2e;border-color:#1565c0}
+body.dark .oa-summary{background:#1a1200;border-color:#e65100;color:#ffb74d}
+body.dark .ex-item.oa-caution{background:#1a1500}
+body.dark .ex-item.oa-caution:hover{background:#221800}
 body.dark .search-bar input{background:#1e1e1e;border-color:#444;color:#d8d8d8}
 body.dark .emp-table td{border-bottom-color:#333;color:#d8d8d8}
 body.dark .emp-table tbody tr:nth-child(even) td{background:#1e1e1e}
@@ -223,6 +234,11 @@ body.dark .print-footer{color:#777!important}
     </div>
     <div class="form-row">
       <div class="form-group" style="max-width:200px"><label>Assessment Type</label><select id="f-type"><option value="Initial">Initial</option><option value="Retest">Retest</option></select></div>
+      <div class="form-group" style="max-width:280px"><label>Client Flags</label>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:19px;padding:6px 0;color:#333;font-weight:400;text-transform:none;letter-spacing:0">
+          <input type="checkbox" id="f-oa"> <span>Osteoarthritis (OA)</span>
+        </label>
+      </div>
     </div>
     <div class="section-divider">Movement Scores</div>
     <div class="pain-flag" id="pain-flag"><span style="font-size:25px">⚑</span><span>Pain reported — Physical Assessment auto-opened. Corrective Plan locked to No per protocol.</span></div>
@@ -267,8 +283,13 @@ body.dark .print-footer{color:#777!important}
       </div>
       <p style="font-size:19px;color:#555;margin-top:4px">
         <span style="color:#cc2200;font-weight:700">Red border</span> = mobility-focused suggestion &nbsp;|&nbsp;
-        <span style="color:#1565c0;font-weight:700">Blue border</span> = stability-focused (hypermobility). Click any exercise to toggle.
+        <span style="color:#1565c0;font-weight:700">Blue border</span> = stability-focused (hypermobility) &nbsp;|&nbsp;
+        <span style="color:#856404;font-weight:700">⚠ OA</span> = may stress joints. Click any exercise to toggle.
       </p>
+      <div class="oa-summary" id="oa-summary-ex">
+        <span style="font-size:22px">⚠</span>
+        <span>Osteoarthritis present — exercises marked ⚠ OA may stress knee or hip joints. Prioritize low-impact options.</span>
+      </div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px">
       <button class="btn btn-outline" onclick="clearSelections()">Clear All</button>
@@ -448,7 +469,8 @@ const CORE_EX=[
   {id:'co7',name:'Rotation Lunge',inst:'Stand holding a small ball. Step forward into a lunge. Push ball out in front of you and twist your body over your front leg.',sets:'3x10 each side'}
 ];
 
-let records=[], editingId=null, selectedExercises={}, suggestedKeys={}, hyperSuggestedKeys={}, currentEmpForSheet=null;
+const OA_CAUTION=new Set(['l3','l4','l5','l7','l8','s1','s2','b3','b4','b6','b8','b9','co5','co7']);
+let records=[], editingId=null, selectedExercises={}, suggestedKeys={}, hyperSuggestedKeys={}, currentEmpForSheet=null, oaActive=false;
 
 async function loadRecords(){try{const r=await window.storage.get('hma-records');if(r)records=JSON.parse(r.value);}catch(e){records=[];}renderTable();}
 async function saveRecords(){try{await window.storage.set('hma-records',JSON.stringify(records));}catch(e){}}
@@ -566,7 +588,7 @@ function getFormData(){
     company:document.getElementById('f-company').value.trim(),dept:document.getElementById('f-dept').value.trim(),
     shift:document.getElementById('f-shift').value,date:document.getElementById('f-date').value,
     location:document.getElementById('f-location').value.trim(),type:document.getElementById('f-type').value,
-    scores:snap,total:calcTotal(snap),hypermobile:getHyperSnapshot(),
+    scores:snap,total:calcTotal(snap),hypermobile:getHyperSnapshot(),hasOA:document.getElementById('f-oa').checked,
     notes:document.getElementById('f-notes').value.trim(),
     followup:document.getElementById('f-followup').value,retest:document.getElementById('f-retest').value,
     plan:document.getElementById('f-plan').value,pa:document.getElementById('f-pa').value};
@@ -583,6 +605,7 @@ function clearForm(){
   const ps=document.getElementById('f-plan'),pa=document.getElementById('f-pa');
   ps.value='No';ps.disabled=false;ps.className='';pa.value='No';pa.disabled=false;pa.className='';
   document.getElementById('f-date').valueAsDate=new Date();
+  document.getElementById('f-oa').checked=false;
   document.getElementById('pain-flag').classList.remove('visible');
   document.getElementById('hyper-summary').classList.remove('visible');
   MOVEMENTS.forEach(m=>{
@@ -609,6 +632,7 @@ function editRecord(id){
   document.getElementById('f-location').value=r.location||'';document.getElementById('f-type').value=r.type;
   document.getElementById('f-notes').value=r.notes||'';document.getElementById('f-followup').value=r.followup||'6';
   document.getElementById('f-retest').value=r.retest||'4';
+  document.getElementById('f-oa').checked=r.hasOA||false;
   loadScoresSnapshot(r.scores);
   if(r.hypermobile)setHypermobile(r.hypermobile);
   showTab('new');
@@ -624,13 +648,15 @@ function renderTable(){
     const risk=r.total<=5?'high':r.total<=10?'mod':'low';
     const fu=r.followup&&r.date?getFuDate(r.date,parseInt(r.followup)):'—';
     const hyperMvmts=r.hypermobile?MOVEMENTS.filter(m=>r.hypermobile[m.key]).map(m=>m.label.split(' ')[0]):[];
-    const hyperBadge=hyperMvmts.length?`<span class="badge badge-hyper" title="Hypermobility: ${hyperMvmts.join(', ')}">⬡ ${hyperMvmts.length}</span>`:'—';
+    const hyperBadge=hyperMvmts.length?`<span class="badge badge-hyper" title="Hypermobility: ${hyperMvmts.join(', ')}">⬡ ${hyperMvmts.length}</span>`:'';
+    const oaBadge=r.hasOA?`<span class="badge" style="background:#fff3cd;color:#856404;margin-left:3px">⚠ OA</span>`:'';
+    const flagsCell=(hyperBadge||oaBadge)?(hyperBadge+oaBadge):'—';
     return`<tr><td><strong>${r.name}</strong><br><span style="font-size:15px;color:#777">${r.dept||''}</span></td>
       <td>${r.date}</td><td style="font-size:18px">${r.shift||'—'} Shift</td>
       <td><span style="font-size:18px;background:${r.type==='Initial'?'#e3e3e3':'#fde8e8'};padding:2px 7px;border-radius:2px;font-weight:700">${r.type}</span></td>
       <td style="font-weight:900;font-size:25px;color:#1a1a1a">${r.total}<span style="font-size:15px;font-weight:400;color:#999">/15</span></td>
       <td><span class="badge badge-${risk}">${{high:'High',mod:'Moderate',low:'Low'}[risk]}</span></td>
-      <td>${hyperBadge}</td>
+      <td>${flagsCell}</td>
       <td style="font-size:18px">${fu}</td>
       <td style="white-space:nowrap">
         <button class="btn btn-outline btn-sm" onclick="editRecord('${r.id}')" style="margin-right:3px">Edit</button>
@@ -647,7 +673,7 @@ function openExerciseBuilder(rec){
   currentEmpForSheet=rec;
   document.getElementById('ex-emp-name').value=rec?rec.name:'';
   document.getElementById('ex-date').value=rec?rec.date:new Date().toISOString().split('T')[0];
-  selectedExercises={};suggestedKeys={};hyperSuggestedKeys={};
+  selectedExercises={};suggestedKeys={};hyperSuggestedKeys={};oaActive=rec?.hasOA||false;
 
   if(rec){
     const hyper=rec.hypermobile||{};
@@ -679,6 +705,8 @@ function imgTag(id,forPrint=false){
 }
 
 function buildExerciseUI(){
+  const oaEl=document.getElementById('oa-summary-ex');
+  if(oaEl)oaEl.classList.toggle('visible',oaActive);
   const cats=[
     {key:'lunge',data:EXERCISES.lunge},
     {key:'sld',data:{...EXERCISES.sld,exercises:[...EXERCISES.sld.exercises,...BALANCE_EX]}},
@@ -697,12 +725,13 @@ function buildExerciseUI(){
         <span>${headerLabel}</span>
         <span style="font-size:15px;font-weight:400;opacity:.7">Click to select / deselect</span>
       </div>
-      <div class="ex-grid">${data.exercises.map(ex=>`
-        <div class="ex-item ${selectedExercises[ex.id]?'selected':''}" onclick="toggleEx('${ex.id}')" id="exitem-${ex.id}">
+      <div class="ex-grid">${data.exercises.map(ex=>{
+        const isCaution=oaActive&&OA_CAUTION.has(ex.id);
+        return`<div class="ex-item ${selectedExercises[ex.id]?'selected':''} ${isCaution?'oa-caution':''}" onclick="toggleEx('${ex.id}')" id="exitem-${ex.id}">
           <div class="ex-check">${selectedExercises[ex.id]?'✓':''}</div>
           ${imgTag(ex.id)}
-          <div>${ex.name}</div>
-        </div>`).join('')}
+          <div>${ex.name}${isCaution?'<span class="oa-caution-flag">⚠ OA</span>':''}</div>
+        </div>`;}).join('')}
       </div>
     </div>`;
   }).join('');
@@ -725,6 +754,7 @@ function buildPrintSheet(){
   const rec=currentEmpForSheet;
   const hyperMvmts=rec?.hypermobile?MOVEMENTS.filter(m=>rec.hypermobile[m.key]).map(m=>m.label):[];
   const hyperNote=hyperMvmts.length?`<div class="print-hyper-note">⬡ Hypermobility noted in: ${hyperMvmts.join(', ')} — exercises selected for stability focus in flagged areas.</div>`:'';
+  const oaNote=rec?.hasOA?`<div class="print-oa-note">⚠ Osteoarthritis present — use pain-free range of motion only. Monitor joint comfort throughout all exercises.</div>`:'';
   document.getElementById('print-sheet').innerHTML=`
     <div class="print-header">
       <div><img src="/images/ati-logo.jpg" style="height:80px;width:auto"></div>
@@ -739,7 +769,7 @@ function buildPrintSheet(){
       <div style="grid-column:span 2;text-align:center;padding:2px 0"><span style="display:inline-block;border-bottom:1px solid #333;padding:0 12px 2px"><div class="print-info-label">Re-Assessment Date</div>${rec?.retest&&rec?.date?(()=>{const d=new Date(rec.date);d.setMonth(d.getMonth()+parseInt(rec.retest));return d.toLocaleDateString();})():'—'}</span></div>
       ${rec?`<div style="grid-column:span 4;text-align:center;padding:4px 0"><span style="display:inline-block;border-bottom:2px solid #cc2200;padding:0 24px 4px"><div class="print-info-label" style="font-size:13px">HMA Score</div><span style="font-size:32px;font-weight:900;font-family:'Barlow Condensed',sans-serif;color:#1a1a1a">${rec.total}<span style="font-size:18px;font-weight:400;color:#999">/15</span></span></span></div>`:''}
     </div>
-    ${hyperNote}
+    ${hyperNote}${oaNote}
     <div class="print-exercises">${chosen.map(ex=>`
       <div class="print-ex-card">
         ${imgTag(ex.id,true)}
