@@ -837,6 +837,7 @@ function buildPrintSheet(){
     <div class="print-footer">ATI Worksite Solutions — Hendrickson &nbsp;|&nbsp; Generated ${new Date().toLocaleDateString()} &nbsp;|&nbsp; These exercises are personalized recommendations. Please perform as directed by your provider.</div>`;
   document.getElementById('ex-builder').classList.add('hidden');
   document.getElementById('ex-print').classList.remove('hidden');
+  window.scrollTo({top:0,behavior:'smooth'});
 }
 
 function backToBuilder(){document.getElementById('ex-builder').classList.remove('hidden');document.getElementById('ex-print').classList.add('hidden');}
