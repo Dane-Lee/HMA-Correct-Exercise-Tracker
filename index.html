@@ -679,8 +679,11 @@ function editRecord(id){
   document.getElementById('f-notes').value=r.notes||'';document.getElementById('f-followup').value=r.followup||'6';
   document.getElementById('f-retest').value=r.retest||'4';
   document.getElementById('f-oa').checked=r.hasOA||false;
+  const ps=document.getElementById('f-plan'),pa=document.getElementById('f-pa');
+  ps.value=r.plan||'No';ps.disabled=false;ps.className='';
+  pa.value=r.pa||'No';pa.disabled=false;pa.className='';
   loadScoresSnapshot(r.scores);
-  if(r.hypermobile)setHypermobile(r.hypermobile);
+  setHypermobile(r.hypermobile||{});
   showTab('new');
 }
 function deleteRecord(id){if(!confirm('Delete this record?'))return;records=records.filter(r=>r.id!==id);saveRecords();renderTable();}
