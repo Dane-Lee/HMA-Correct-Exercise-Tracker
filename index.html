@@ -128,6 +128,13 @@ body{font-family:'Barlow',Arial,sans-serif;font-size:22px;background:#1a1a1a;col
 .ex-type-static-stabilization{background:#e8f5e9;color:#2e7d32}
 .ex-type-dynamic-stabilization{background:#e0f2f1;color:#00695c}
 .ex-type-strength{background:#f3e5f5;color:#6a1b9a}
+.detail-toggle-row{display:flex;gap:6px;margin-top:8px}
+.detail-toggle-btn{flex:1;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;padding:4px 6px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;color:#555;transition:all .15s;font-family:inherit}
+.detail-toggle-btn:hover{border-color:#cc2200;color:#cc2200}
+.detail-toggle-btn.open{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.detail-panel{padding:6px 2px 2px;border-top:1px solid #eee;margin-top:6px}
+.obs-label,.focus-label{display:flex;align-items:flex-start;gap:5px;font-size:11px;color:#555;padding:2px 0;cursor:pointer;line-height:1.3}
+.obs-label input,.focus-label input{margin-top:2px;flex-shrink:0;accent-color:#cc2200;cursor:pointer}
 .print-section{margin-bottom:16px}
 .print-section-header{background:#1a1a1a;color:#fff;padding:6px 12px;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-left:4px solid #cc2200;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;font-family:'Barlow Condensed',sans-serif}
 .print-section-score{font-size:13px;font-weight:400;opacity:.75;letter-spacing:0}
@@ -188,6 +195,11 @@ body.dark .score-divider{border-top-color:#444}
 body.dark .score-final{color:#bbb;border-top-color:#cc2200}
 body.dark .hyper-btn{background:#1e1e1e;border-color:#3a4a6a;color:#6fa3e0}
 body.dark .hyper-btn:hover{background:#1a2a3a}
+body.dark .detail-toggle-btn{background:#2a2a2a;border-color:#444;color:#bbb}
+body.dark .detail-toggle-btn:hover{border-color:#cc2200;color:#cc2200}
+body.dark .detail-toggle-btn.open{background:#cc2200;border-color:#cc2200;color:#fff}
+body.dark .detail-panel{border-top-color:#333}
+body.dark .obs-label,body.dark .focus-label{color:#999}
 body.dark .total-display{background:#1e1e1e}
 body.dark .total-display.high{background:#2a1010;border-left-color:#cc2200}
 body.dark .total-display.mod{background:#2a2210;border-left-color:#f9a825}
@@ -583,7 +595,18 @@ const EX_TYPE={
   b1:'static stabilization',b2:'static stabilization',b3:'dynamic stabilization',b4:'strength',b5:'dynamic stabilization',b6:'dynamic stabilization',b7:'dynamic stabilization',b8:'dynamic stabilization',b9:'dynamic stabilization',
   co1:'static stabilization',co2:'dynamic stabilization',co3:'mobility',co4:'dynamic stabilization',co5:'dynamic stabilization',co6:'flexibility',co7:'dynamic stabilization'
 };
+const MOVEMENT_FAULTS={
+  lunge:['Limited ROM — back knee did not reach near ground','Knee valgus/varus (front knee)','Front foot not flat','Loss of control/balance','Excessive effort/overexertion','Foot pronation/supination'],
+  sld:['Loss of control/balance','Body rotation','Stance foot falls inward/outward','Stance knee falls inward/outward','Hips not level','Excessive effort/overexertion'],
+  shoulder:['Asymmetry of movement (lateral flexion)','Rounded shoulders','Bottom fingertips don\'t reach opposite inferior scapula angle','Top fingertips don\'t reach midline of spine','Hands overlapping','Finger walking/excessive effort'],
+  trunk:['Excessive lower extremity movement','Spine/pelvis deviation from center','Excessive cervical spine motion','Excessive effort/overexertion'],
+  cervical:['Limited ROM — chin doesn\'t pass midline of clavicle','Shoulder movement during head rotation','Rounded shoulders/forward head lean','Neck deviates from midline','Excessive effort/overexertion']
+};
+const QUALITY_TYPES=['flexibility','mobility','static stabilization','dynamic stabilization','strength'];
+const QUALITY_LABELS={'flexibility':'Flexibility','mobility':'Mobility','static stabilization':'Static Stab','dynamic stabilization':'Dynamic Stab','strength':'Strength'};
 let records=[], editingId=null, selectedExercises={}, customSetsReps={}, suggestedKeys={}, hyperSuggestedKeys={}, currentEmpForSheet=null, oaActive=false, libraryBuilt=false;
+let observations={lunge:{},sld:{},shoulder:{},trunk:{},cervical:{}};
+let qualityFocus={lunge:[],sld:[],shoulder:[],trunk:[],cervical:[]};
 
 async function loadRecords(){try{const r=await window.storage.get('hma-records');if(r)records=JSON.parse(r.value);}catch(e){records=[];}renderTable();}
 async function saveRecords(){try{await window.storage.set('hma-records',JSON.stringify(records));}catch(e){}}
@@ -620,6 +643,16 @@ function buildScoreGrid(){
       <div class="hyper-toggle">
         <button class="hyper-btn" id="hyper-btn-${m.key}" onclick="toggleHyper('${m.key}')">⬡ Hypermobile</button>
       </div>
+      <div class="detail-toggle-row">
+        <button class="detail-toggle-btn" onclick="toggleDetailPanel('obs-${m.key}',this)">▾ Observations</button>
+        <button class="detail-toggle-btn" onclick="toggleDetailPanel('focus-${m.key}',this)">▾ Quality Focus</button>
+      </div>
+      <div class="detail-panel" id="obs-${m.key}" style="display:none">
+        ${MOVEMENT_FAULTS[m.key].map((f,i)=>`<label class="obs-label"><input type="checkbox" id="obs-cb-${m.key}-${i}" onchange="toggleObs('${m.key}',${i},this.checked)"> ${f}</label>`).join('')}
+      </div>
+      <div class="detail-panel" id="focus-${m.key}" style="display:none">
+        ${QUALITY_TYPES.map(q=>`<label class="focus-label"><input type="checkbox" id="focus-cb-${m.key}-${q.replace(/\s/g,'-')}" onchange="toggleQuality('${m.key}','${q}',this.checked)"> ${QUALITY_LABELS[q]}</label>`).join('')}
+      </div>
     </div>`).join('');
   document.getElementById('f-date').valueAsDate=new Date();
 }
@@ -644,6 +677,20 @@ function updateHyperSummary(){
   }
 }
 
+function toggleDetailPanel(id,btn){
+  const p=document.getElementById(id);
+  const open=p.style.display!=='none';
+  p.style.display=open?'none':'block';
+  btn.classList.toggle('open',!open);
+}
+function toggleObs(key,idx,checked){
+  if(checked)observations[key][idx]=MOVEMENT_FAULTS[key][idx];
+  else delete observations[key][idx];
+}
+function toggleQuality(key,quality,checked){
+  if(checked){if(!qualityFocus[key].includes(quality))qualityFocus[key].push(quality);}
+  else{qualityFocus[key]=qualityFocus[key].filter(q=>q!==quality);}
+}
 function setHypermobile(snap){
   MOVEMENTS.forEach(m=>{
     hypermobile[m.key]=snap[m.key]||false;
@@ -705,7 +752,8 @@ function getFormData(){
     scores:snap,total:calcTotal(snap),hypermobile:getHyperSnapshot(),hasOA:document.getElementById('f-oa').checked,
     notes:document.getElementById('f-notes').value.trim(),
     followup:document.getElementById('f-followup').value,retest:document.getElementById('f-retest').value,
-    plan:document.getElementById('f-plan').value,pa:document.getElementById('f-pa').value};
+    plan:document.getElementById('f-plan').value,pa:document.getElementById('f-pa').value,
+    observations:JSON.parse(JSON.stringify(observations)),qualityFocus:JSON.parse(JSON.stringify(qualityFocus))};
 }
 
 function saveRecord(){const d=getFormData();if(!d.name.trim()){alert('Please enter employee name.');return;}if(editingId){const i=records.findIndex(r=>r.id===editingId);if(i>-1)records[i]=d;}else records.unshift(d);saveRecords();clearForm();renderTable();showTab('records');}
@@ -731,6 +779,12 @@ function clearForm(){
     const block=document.getElementById('block-'+m.key);
     if(btn)btn.classList.remove('active');
     if(block)block.classList.remove('hypermobile');
+    observations[m.key]={};
+    MOVEMENT_FAULTS[m.key].forEach((_,i)=>{const cb=document.getElementById(`obs-cb-${m.key}-${i}`);if(cb)cb.checked=false;});
+    qualityFocus[m.key]=[];
+    QUALITY_TYPES.forEach(q=>{const cb=document.getElementById(`focus-cb-${m.key}-${q.replace(/\s/g,'-')}`);if(cb)cb.checked=false;});
+    ['obs','focus'].forEach(type=>{const p=document.getElementById(`${type}-${m.key}`);if(p)p.style.display='none';});
+    document.querySelectorAll(`#block-${m.key} .detail-toggle-btn`).forEach(b=>b.classList.remove('open'));
   });
   document.getElementById('total-num').textContent='0';document.getElementById('total-label').textContent='Running Total';
   document.getElementById('risk-desc').textContent='Score movements above';document.getElementById('total-display').className='total-display';
@@ -752,6 +806,12 @@ function editRecord(id){
   pa.value=r.pa||'No';pa.disabled=false;pa.className='';
   loadScoresSnapshot(r.scores);
   setHypermobile(r.hypermobile||{});
+  const rObs=r.observations||{};const rQF=r.qualityFocus||{};
+  MOVEMENTS.forEach(m=>{
+    observations[m.key]={};qualityFocus[m.key]=[];
+    Object.keys(rObs[m.key]||{}).forEach(i=>{observations[m.key][i]=rObs[m.key][i];const cb=document.getElementById(`obs-cb-${m.key}-${i}`);if(cb)cb.checked=true;});
+    (rQF[m.key]||[]).forEach(q=>{qualityFocus[m.key].push(q);const cb=document.getElementById(`focus-cb-${m.key}-${q.replace(/\s/g,'-')}`);if(cb)cb.checked=true;});
+  });
   showTab('new');
 }
 function deleteRecord(id){if(!confirm('Delete this record?'))return;records=records.filter(r=>r.id!==id);saveRecords();renderTable();}
@@ -809,6 +869,14 @@ function openExerciseBuilder(rec){
         if(m.key==='trunk')CORE_EX.slice(0,2).forEach(e=>selectedExercises[e.id]=true);
       }
     });
+    // Quality focus bias — add exercises matching preferred types on top of auto-suggestions
+    const recQF=rec.qualityFocus||{};
+    const exPool={lunge:EXERCISES.lunge.exercises,sld:[...EXERCISES.sld.exercises,...BALANCE_EX],shoulder:EXERCISES.shoulder.exercises,trunk:[...EXERCISES.trunk.exercises,...CORE_EX],cervical:EXERCISES.cervical.exercises};
+    MOVEMENTS.forEach(m=>{
+      const prefs=recQF[m.key]||[];
+      if(!prefs.length)return;
+      (exPool[m.key]||[]).forEach(ex=>{if(prefs.includes(EX_TYPE[ex.id]))selectedExercises[ex.id]=true;});
+    });
   }
   buildExerciseUI();
   document.getElementById('ex-builder').classList.remove('hidden');
@@ -838,6 +906,8 @@ function buildExerciseUI(){
     let headerClass='', headerLabel=data.label;
     if(isHyper){headerClass='hyper-suggested';headerLabel+=` &nbsp;⬡ Stability Focus (Hypermobility)`;}
     else if(isMobility){headerClass='suggested';headerLabel+=` &nbsp;⚑ Auto-suggested`;}
+    const qfPrefs=(currentEmpForSheet?.qualityFocus||{})[key]||[];
+    if(qfPrefs.length)headerLabel+=` &nbsp;◈ ${qfPrefs.map(q=>QUALITY_LABELS[q]).join(', ')}`;
     return`<div class="ex-category">
       <div class="ex-cat-header ${headerClass}">
         <span>${headerLabel}</span>
