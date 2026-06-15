@@ -86,6 +86,10 @@ body{font-family:'Barlow',Arial,sans-serif;font-size:22px;background:#1a1a1a;col
 .emp-table{width:100%;border-collapse:collapse;font-size:19px}
 .emp-table th{background:#1a1a1a;color:#fff;padding:12px 16px;text-align:center;font-size:19px;text-transform:uppercase;letter-spacing:.5px;font-family:'Barlow Condensed',sans-serif}
 .emp-table th:first-child{border-left:3px solid #cc2200}
+.emp-table th.sortable{cursor:pointer;user-select:none}
+.emp-table th.sortable:hover{background:#333;color:#ff6b6b}
+.emp-table th.sort-active{background:#cc2200}
+.sort-ind{font-size:13px;margin-left:3px;opacity:.9}
 .emp-table td{padding:12px 16px;border-bottom:1px solid #eee}
 .emp-table tbody tr:nth-child(even) td{background:#f8f8f8}
 .emp-table tr:hover td{background:#fff0ee}
@@ -221,6 +225,8 @@ body.dark .sets-reps-input{color:#d8d8d8;border-bottom-color:#cc2200}
 body.dark .ex-item.oa-caution{background:#1a1500}
 body.dark .ex-item.oa-caution:hover{background:#221800}
 body.dark .search-bar input{background:#1e1e1e;border-color:#444;color:#d8d8d8}
+body.dark .emp-table th.sortable:hover{background:#333;color:#ff6b6b}
+body.dark .emp-table th.sort-active{background:#cc2200}
 body.dark .emp-table td{border-bottom-color:#333;color:#d8d8d8}
 body.dark .emp-table tbody tr:nth-child(even) td{background:#1e1e1e}
 body.dark .emp-table tr:hover td{background:#2a1a1a}
@@ -318,7 +324,17 @@ body.dark #paste-import-panel{background:#1e1e1e;border-color:#444;color:#d8d8d8
       </div>
     </div>
     <table class="emp-table">
-      <thead><tr><th>Name</th><th>Date</th><th>Shift</th><th>Type</th><th>Score</th><th>Risk</th><th>Flags</th><th>Follow-up</th><th>Actions</th></tr></thead>
+      <thead><tr>
+        <th id="th-name" class="sortable" onclick="sortBy('name')">Name<span class="sort-ind"></span></th>
+        <th id="th-date" class="sortable" onclick="sortBy('date')">Date<span class="sort-ind"></span></th>
+        <th id="th-shift" class="sortable" onclick="sortBy('shift')">Shift<span class="sort-ind"></span></th>
+        <th id="th-type" class="sortable" onclick="sortBy('type')">Type<span class="sort-ind"></span></th>
+        <th id="th-score" class="sortable" onclick="sortBy('score')">Score<span class="sort-ind"></span></th>
+        <th id="th-risk" class="sortable" onclick="sortBy('risk')">Risk<span class="sort-ind"></span></th>
+        <th id="th-flags" class="sortable" onclick="sortBy('flags')">Flags<span class="sort-ind"></span></th>
+        <th id="th-followup" class="sortable" onclick="sortBy('followup')">Follow-up<span class="sort-ind"></span></th>
+        <th>Actions</th>
+      </tr></thead>
       <tbody id="emp-tbody"></tbody>
     </table>
   </div>
@@ -607,6 +623,7 @@ const QUALITY_LABELS={'flexibility':'Flexibility','mobility':'Mobility','static 
 let records=[], editingId=null, selectedExercises={}, customSetsReps={}, suggestedKeys={}, hyperSuggestedKeys={}, currentEmpForSheet=null, oaActive=false, libraryBuilt=false;
 let observations={lunge:{},sld:{},shoulder:{},trunk:{},cervical:{}};
 let qualityFocus={lunge:[],sld:[],shoulder:[],trunk:[],cervical:[]};
+let sortCol='date', sortDir='desc';
 
 async function loadRecords(){try{const r=await window.storage.get('hma-records');if(r)records=JSON.parse(r.value);}catch(e){records=[];}renderTable();}
 async function saveRecords(){try{await window.storage.set('hma-records',JSON.stringify(records));}catch(e){}}
@@ -816,10 +833,34 @@ function editRecord(id){
 }
 function deleteRecord(id){if(!confirm('Delete this record?'))return;records=records.filter(r=>r.id!==id);saveRecords();renderTable();}
 
+function sortBy(col){if(sortCol===col){sortDir=sortDir==='asc'?'desc':'asc';}else{sortCol=col;sortDir='asc';}renderTable();}
+function sortRecords(arr){
+  const dir=sortDir==='asc'?1:-1;
+  return[...arr].sort((a,b)=>{
+    let av,bv;
+    if(sortCol==='name'){av=(a.name||'').toLowerCase();bv=(b.name||'').toLowerCase();}
+    else if(sortCol==='date'){av=a.date||'';bv=b.date||'';}
+    else if(sortCol==='shift'){av=a.shift||'';bv=b.shift||'';}
+    else if(sortCol==='type'){av=a.type||'';bv=b.type||'';}
+    else if(sortCol==='score'||sortCol==='risk'){av=a.total??0;bv=b.total??0;}
+    else if(sortCol==='flags'){
+      av=(a.hypermobile?MOVEMENTS.filter(m=>a.hypermobile[m.key]).length:0)+(a.hasOA?1:0);
+      bv=(b.hypermobile?MOVEMENTS.filter(m=>b.hypermobile[m.key]).length:0)+(b.hasOA?1:0);
+    }else if(sortCol==='followup'){
+      av=a.followup&&a.date?new Date(a.date).getTime()+parseInt(a.followup)*7*24*3600*1000:0;
+      bv=b.followup&&b.date?new Date(b.date).getTime()+parseInt(b.followup)*7*24*3600*1000:0;
+    }else{av=0;bv=0;}
+    return av<bv?-dir:av>bv?dir:0;
+  });
+}
+
 function renderTable(){
   const q=(document.getElementById('search-input')?.value||'').toLowerCase();
   const tb=document.getElementById('emp-tbody');
-  const f=records.filter(r=>(r.name||'').toLowerCase().includes(q)||(r.company||'').toLowerCase().includes(q)||(r.dept||'').toLowerCase().includes(q));
+  const cols=['name','date','shift','type','score','risk','flags','followup'];
+  cols.forEach(c=>{const th=document.getElementById('th-'+c);if(!th)return;th.classList.toggle('sort-active',sortCol===c);const ind=th.querySelector('.sort-ind');if(ind)ind.textContent=sortCol===c?(sortDir==='asc'?'▲':'▼'):'';});
+  let f=records.filter(r=>(r.name||'').toLowerCase().includes(q)||(r.company||'').toLowerCase().includes(q)||(r.dept||'').toLowerCase().includes(q));
+  f=sortRecords(f);
   if(!f.length){tb.innerHTML=`<tr><td colspan="9" style="text-align:center;color:#888;padding:20px">No records yet. Click "+ New Assessment" to get started.</td></tr>`;return;}
   tb.innerHTML=f.map(r=>{
     const risk=r.total<=5?'high':r.total<=10?'mod':'low';
