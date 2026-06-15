@@ -132,6 +132,12 @@ body{font-family:'Barlow',Arial,sans-serif;font-size:22px;background:#1a1a1a;col
 .ex-type-static-stabilization{background:#e8f5e9;color:#2e7d32}
 .ex-type-dynamic-stabilization{background:#e0f2f1;color:#00695c}
 .ex-type-strength{background:#f3e5f5;color:#6a1b9a}
+.conflict-notice{background:#fff8e1;border:1px solid #f9a825;border-left:4px solid #f9a825;border-radius:6px;margin-bottom:14px;overflow:hidden}
+.conflict-notice-header{padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;color:#856404;user-select:none}
+.conflict-notice-header:hover{background:#fff3cd}
+.conflict-notice-body{padding:8px 14px 12px;border-top:1px solid #f9a825}
+.conflict-item{font-size:14px;color:#555;padding:5px 0;border-bottom:1px dashed #f0d080;line-height:1.4}
+.conflict-item:last-child{border-bottom:none}
 .detail-toggle-row{display:flex;gap:6px;margin-top:8px}
 .detail-toggle-btn{flex:1;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;padding:4px 6px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;color:#555;transition:all .15s;font-family:inherit}
 .detail-toggle-btn:hover{border-color:#cc2200;color:#cc2200}
@@ -199,6 +205,11 @@ body.dark .score-divider{border-top-color:#444}
 body.dark .score-final{color:#bbb;border-top-color:#cc2200}
 body.dark .hyper-btn{background:#1e1e1e;border-color:#3a4a6a;color:#6fa3e0}
 body.dark .hyper-btn:hover{background:#1a2a3a}
+body.dark .conflict-notice{background:#2a2000;border-color:#856404}
+body.dark .conflict-notice-header{color:#ffc107}
+body.dark .conflict-notice-header:hover{background:#332800}
+body.dark .conflict-notice-body{border-top-color:#856404}
+body.dark .conflict-item{color:#bbb;border-bottom-color:#444}
 body.dark .detail-toggle-btn{background:#2a2a2a;border-color:#444;color:#bbb}
 body.dark .detail-toggle-btn:hover{border-color:#cc2200;color:#cc2200}
 body.dark .detail-toggle-btn.open{background:#cc2200;border-color:#cc2200;color:#fff}
@@ -427,6 +438,7 @@ body.dark #paste-import-panel{background:#1e1e1e;border-color:#444;color:#d8d8d8
       <button class="btn btn-outline" onclick="clearSelections()">Clear All</button>
       <button class="btn btn-red" onclick="buildPrintSheet()">Preview Print Sheet</button>
     </div>
+    <div id="conflict-notice"></div>
     <div id="ex-categories"></div>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px">
       <button class="btn btn-outline" onclick="clearSelections()">Clear All</button>
@@ -611,6 +623,24 @@ const EX_TYPE={
   b1:'static stabilization',b2:'static stabilization',b3:'dynamic stabilization',b4:'strength',b5:'dynamic stabilization',b6:'dynamic stabilization',b7:'dynamic stabilization',b8:'dynamic stabilization',b9:'dynamic stabilization',
   co1:'static stabilization',co2:'dynamic stabilization',co3:'mobility',co4:'dynamic stabilization',co5:'dynamic stabilization',co6:'flexibility',co7:'dynamic stabilization'
 };
+const EXERCISE_TARGETS={
+  l1:'hip-flexors',l2:'posterior-hip',l3:'quadriceps',l4:'quadriceps',l5:'quadriceps',l6:'core-anterior',l7:'quadriceps',l8:'hip-abductors',l9:'glutes',
+  s1:'calves-ankle',s2:'hip-flexors',s3:'glutes',s4:'glutes',s5:'single-leg-balance',s6:'hip-abductors',s7:'hip-abductors',s8:'single-leg-balance',s9:'posterior-hip',
+  sh1:'pectorals',sh2:'triceps',sh3:'pectorals',sh4:'rotator-cuff',sh5:'scapular',sh6:'shoulder-mobility',sh7:'posterior-shoulder',sh8:'scapular',sh9:'shoulder-mobility',
+  t1:'thoracic-mobility',t2:'thoracic-rotation',t3:'lats',t4:'scapular',t5:'scapular',t6:'core-rotation',t7:'core-rotation',t8:'core-rotation',
+  c1:'cervical-lateral',c2:'cervical-lateral',c3:'cervical-rotation',c4:'cervical-retraction',c5:'cervical-retraction',c6:'cervical-rotation',c7:'cervical-rotation',c8:'cervical-lateral',c9:'thoracic-rotation',
+  b1:'single-leg-balance',b2:'balance',b3:'single-leg-balance',b4:'quadriceps',b5:'balance',b6:'balance',b7:'single-leg-balance',b8:'single-leg-balance',b9:'balance',
+  co1:'core-anterior',co2:'core-anterior',co3:'lumbar-mobility',co4:'posterior-chain',co5:'core-rotation',co6:'hamstrings',co7:'core-rotation'
+};
+const EXERCISE_CATEGORY={
+  l1:'lunge',l2:'lunge',l3:'lunge',l4:'lunge',l5:'lunge',l6:'lunge',l7:'lunge',l8:'lunge',l9:'lunge',
+  s1:'sld',s2:'sld',s3:'sld',s4:'sld',s5:'sld',s6:'sld',s7:'sld',s8:'sld',s9:'sld',
+  sh1:'shoulder',sh2:'shoulder',sh3:'shoulder',sh4:'shoulder',sh5:'shoulder',sh6:'shoulder',sh7:'shoulder',sh8:'shoulder',sh9:'shoulder',
+  t1:'trunk',t2:'trunk',t3:'trunk',t4:'trunk',t5:'trunk',t6:'trunk',t7:'trunk',t8:'trunk',
+  c1:'cervical',c2:'cervical',c3:'cervical',c4:'cervical',c5:'cervical',c6:'cervical',c7:'cervical',c8:'cervical',c9:'cervical',
+  b1:'sld',b2:'sld',b3:'sld',b4:'sld',b5:'sld',b6:'sld',b7:'sld',b8:'sld',b9:'sld',
+  co1:'trunk',co2:'trunk',co3:'trunk',co4:'trunk',co5:'trunk',co6:'trunk',co7:'trunk'
+};
 const MOVEMENT_FAULTS={
   lunge:['Limited ROM — back knee did not reach near ground','Knee valgus/varus (front knee)','Front foot not flat','Loss of control/balance','Excessive effort/overexertion','Foot pronation/supination'],
   sld:['Loss of control/balance','Body rotation','Stance foot falls inward/outward','Stance knee falls inward/outward','Hips not level','Excessive effort/overexertion'],
@@ -624,6 +654,7 @@ let records=[], editingId=null, selectedExercises={}, customSetsReps={}, suggest
 let observations={lunge:{},sld:{},shoulder:{},trunk:{},cervical:{}};
 let qualityFocus={lunge:[],sld:[],shoulder:[],trunk:[],cervical:[]};
 let sortCol='date', sortDir='desc';
+let resolvedConflicts=[];
 
 async function loadRecords(){try{const r=await window.storage.get('hma-records');if(r)records=JSON.parse(r.value);}catch(e){records=[];}renderTable();}
 async function saveRecords(){try{await window.storage.set('hma-records',JSON.stringify(records));}catch(e){}}
@@ -833,6 +864,43 @@ function editRecord(id){
 }
 function deleteRecord(id){if(!confirm('Delete this record?'))return;records=records.filter(r=>r.id!==id);saveRecords();renderTable();}
 
+function exName(id){
+  const all=[...EXERCISES.lunge.exercises,...EXERCISES.sld.exercises,...EXERCISES.shoulder.exercises,...EXERCISES.trunk.exercises,...EXERCISES.cervical.exercises,...BALANCE_EX,...CORE_EX];
+  return all.find(e=>e.id===id)?.name||id;
+}
+function catLabel(key){return{lunge:'Forward Lunge',sld:'Single Leg Dip',shoulder:'Shoulder Reach',trunk:'Trunk Rotation',cervical:'Cervical'}[key]||key;}
+function formatTarget(t){return t.replace(/-/g,' ');}
+
+function deduplicateExercises(rec){
+  resolvedConflicts=[];
+  if(!rec)return;
+  const catScore={};
+  MOVEMENTS.forEach(m=>{const s=rec.scores[m.key];catScore[m.key]=(s[0].val!==null&&s[1].val!==null)?Math.min(s[0].val,s[1].val):3;});
+  const selected=Object.keys(selectedExercises).filter(id=>selectedExercises[id]);
+  const groups={};
+  selected.forEach(id=>{
+    const target=EXERCISE_TARGETS[id],type=EX_TYPE[id],cat=EXERCISE_CATEGORY[id];
+    if(!target||!type||!cat)return;
+    const key=`${target}::${type}`;
+    if(!groups[key])groups[key]=[];
+    groups[key].push({id,target,type,cat});
+  });
+  Object.values(groups).forEach(group=>{
+    const catSet=[...new Set(group.map(e=>e.cat))];
+    if(catSet.length<2)return;
+    const sortedCats=catSet.slice().sort((a,b)=>(catScore[a]??3)-(catScore[b]??3));
+    const winnerCat=sortedCats[0],winnerScore=catScore[winnerCat]??3;
+    group.forEach(ex=>{
+      if(ex.cat===winnerCat)return;
+      const exScore=catScore[ex.cat]??3;
+      if(exScore>winnerScore){
+        delete selectedExercises[ex.id];
+        resolvedConflicts.push({droppedId:ex.id,droppedCat:ex.cat,droppedScore:exScore,keptCat:winnerCat,keptScore:winnerScore,target:ex.target});
+      }
+    });
+  });
+}
+
 function sortBy(col){if(sortCol===col){sortDir=sortDir==='asc'?'desc':'asc';}else{sortCol=col;sortDir='asc';}renderTable();}
 function sortRecords(arr){
   const dir=sortDir==='asc'?1:-1;
@@ -919,6 +987,7 @@ function openExerciseBuilder(rec){
       (exPool[m.key]||[]).forEach(ex=>{if(prefs.includes(EX_TYPE[ex.id]))selectedExercises[ex.id]=true;});
     });
   }
+  deduplicateExercises(rec);
   buildExerciseUI();
   document.getElementById('ex-builder').classList.remove('hidden');
   document.getElementById('ex-print').classList.add('hidden');
@@ -934,6 +1003,24 @@ function imgTag(id,forPrint=false){
 function buildExerciseUI(){
   const oaEl=document.getElementById('oa-summary-ex');
   if(oaEl)oaEl.classList.toggle('visible',oaActive);
+  const conflictEl=document.getElementById('conflict-notice');
+  if(conflictEl){
+    if(resolvedConflicts.length){
+      const plural=resolvedConflicts.length>1?'redundancies':'redundancy';
+      conflictEl.innerHTML=`<div class="conflict-notice">
+        <div class="conflict-notice-header" onclick="this.nextElementSibling.classList.toggle('hidden')">
+          ⚠ ${resolvedConflicts.length} ${plural} resolved — click to review
+        </div>
+        <div class="conflict-notice-body hidden">
+          ${resolvedConflicts.map(c=>`<div class="conflict-item">
+            <strong>${exName(c.droppedId)}</strong> (${catLabel(c.droppedCat)}) removed — conflicts with a retained <strong>${formatTarget(c.target)}</strong> exercise from ${catLabel(c.keptCat)}. ${catLabel(c.keptCat)} prioritized based on lower movement score (${c.keptScore} vs ${c.droppedScore}).
+          </div>`).join('')}
+        </div>
+      </div>`;
+    } else {
+      conflictEl.innerHTML='';
+    }
+  }
   const cats=[
     {key:'lunge',data:EXERCISES.lunge},
     {key:'sld',data:{...EXERCISES.sld,exercises:[...EXERCISES.sld.exercises,...BALANCE_EX]}},
