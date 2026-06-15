@@ -125,7 +125,9 @@ body{font-family:'Barlow',Arial,sans-serif;font-size:22px;background:#1a1a1a;col
 .ex-type-badge{display:inline-block;font-size:11px;font-weight:700;padding:1px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.3px;vertical-align:middle;margin-left:4px}
 .ex-type-flexibility{background:#e3f2fd;color:#1565c0}
 .ex-type-mobility{background:#fff3e0;color:#e65100}
-.ex-type-stability{background:#e8f5e9;color:#2e7d32}
+.ex-type-static-stabilization{background:#e8f5e9;color:#2e7d32}
+.ex-type-dynamic-stabilization{background:#e0f2f1;color:#00695c}
+.ex-type-strength{background:#f3e5f5;color:#6a1b9a}
 .print-section{margin-bottom:16px}
 .print-section-header{background:#1a1a1a;color:#fff;padding:6px 12px;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-left:4px solid #cc2200;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;font-family:'Barlow Condensed',sans-serif}
 .print-section-score{font-size:13px;font-weight:400;opacity:.75;letter-spacing:0}
@@ -545,7 +547,7 @@ const EXERCISES={
     {id:'c6',name:'Cervical Rotation with Ball',inst:'Ball on wall at face height, forehead on ball. Rotate head all the way to one side then the other.',sets:'3x10 each side'},
     {id:'c7',name:'Isometric Cervical Rotation',inst:'Place fingers on side of forehead. Attempt to rotate head toward fingers but resist with hand. Head stays neutral.',sets:'3x10-second holds each side'},
     {id:'c8',name:'Isometric Cervical Side Bending',inst:'Two fingers on temple. Attempt to push head to side and resist with neck muscles. Head should not move.',sets:'3x10-second holds each side'},
-    {id:'c9',name:'Tread the Needle with Extension',inst:'On hands and knees. Brace abdominals and lift one arm straight out to the side, palm down. Slowly bring arm back down.',sets:'3x10 each side'}
+    {id:'c9',name:'Thread the Needle with Extension',inst:'On hands and knees. Brace abdominals and lift one arm straight out to the side, palm down. Slowly bring arm back down.',sets:'3x10 each side'}
   ]}
 };
 
@@ -573,13 +575,13 @@ const CORE_EX=[
 
 const OA_CAUTION=new Set(['l3','l4','l5','l7','l8','s1','s2','b3','b4','b6','b8','b9','co5','co7']);
 const EX_TYPE={
-  l1:'flexibility',l2:'flexibility',l3:'mobility',l4:'stability',l5:'mobility',l6:'stability',l7:'stability',l8:'stability',l9:'stability',
-  s1:'flexibility',s2:'flexibility',s3:'stability',s4:'stability',s5:'stability',s6:'stability',s7:'stability',s8:'stability',s9:'flexibility',
-  sh1:'flexibility',sh2:'flexibility',sh3:'stability',sh4:'stability',sh5:'stability',sh6:'mobility',sh7:'stability',sh8:'stability',sh9:'flexibility',
-  t1:'flexibility',t2:'mobility',t3:'flexibility',t4:'stability',t5:'stability',t6:'mobility',t7:'mobility',t8:'mobility',
-  c1:'flexibility',c2:'flexibility',c3:'flexibility',c4:'mobility',c5:'stability',c6:'mobility',c7:'stability',c8:'stability',c9:'mobility',
-  b1:'stability',b2:'stability',b3:'stability',b4:'stability',b5:'stability',b6:'stability',b7:'stability',b8:'stability',b9:'mobility',
-  co1:'stability',co2:'stability',co3:'mobility',co4:'stability',co5:'stability',co6:'flexibility',co7:'mobility'
+  l1:'flexibility',l2:'flexibility',l3:'strength',l4:'static stabilization',l5:'dynamic stabilization',l6:'dynamic stabilization',l7:'strength',l8:'dynamic stabilization',l9:'static stabilization',
+  s1:'flexibility',s2:'flexibility',s3:'strength',s4:'dynamic stabilization',s5:'static stabilization',s6:'strength',s7:'dynamic stabilization',s8:'dynamic stabilization',s9:'flexibility',
+  sh1:'flexibility',sh2:'flexibility',sh3:'strength',sh4:'dynamic stabilization',sh5:'dynamic stabilization',sh6:'mobility',sh7:'strength',sh8:'dynamic stabilization',sh9:'flexibility',
+  t1:'flexibility',t2:'mobility',t3:'flexibility',t4:'dynamic stabilization',t5:'dynamic stabilization',t6:'strength',t7:'dynamic stabilization',t8:'dynamic stabilization',
+  c1:'flexibility',c2:'flexibility',c3:'flexibility',c4:'mobility',c5:'static stabilization',c6:'mobility',c7:'static stabilization',c8:'static stabilization',c9:'dynamic stabilization',
+  b1:'static stabilization',b2:'static stabilization',b3:'dynamic stabilization',b4:'strength',b5:'dynamic stabilization',b6:'dynamic stabilization',b7:'dynamic stabilization',b8:'dynamic stabilization',b9:'dynamic stabilization',
+  co1:'static stabilization',co2:'dynamic stabilization',co3:'mobility',co4:'dynamic stabilization',co5:'dynamic stabilization',co6:'flexibility',co7:'dynamic stabilization'
 };
 let records=[], editingId=null, selectedExercises={}, customSetsReps={}, suggestedKeys={}, hyperSuggestedKeys={}, currentEmpForSheet=null, oaActive=false, libraryBuilt=false;
 
@@ -909,7 +911,7 @@ function buildPrintSheet(){
         const t=cat=>EX_TYPE[cat]||'';
         return`<div class="print-section">
           <div class="print-section-header"><span>${cat.label}</span>${scoreHtml}</div>
-          <div class="print-exercises">${catEx.map(ex=>{const tp=EX_TYPE[ex.id];const tBadge=tp?`<span class="ex-type-badge ex-type-${tp}">${tp[0].toUpperCase()+tp.slice(1)}</span>`:'';return`
+          <div class="print-exercises">${catEx.map(ex=>{const tp=EX_TYPE[ex.id];const tBadge=tp?`<span class="ex-type-badge ex-type-${tp.replace(/\s+/g,'-')}">${tp[0].toUpperCase()+tp.slice(1)}</span>`:'';return`
             <div class="print-ex-card">
               ${imgTag(ex.id,true)}
               <div class="print-ex-name">${ex.name}${tBadge}</div>
@@ -1039,7 +1041,7 @@ function importFromText(){
 
 function exTypeBadge(id,small=false){
   const t=EX_TYPE[id];if(!t)return'';
-  return`<span class="ex-type-badge ex-type-${t}"${small?' style="font-size:10px"':''}>${t[0].toUpperCase()+t.slice(1)}</span>`;
+  return`<span class="ex-type-badge ex-type-${t.replace(/\s+/g,'-')}"${small?' style="font-size:10px"':''}>${t[0].toUpperCase()+t.slice(1)}</span>`;
 }
 function libCard(ex){
   const src=IMAGE_REGISTRY[ex.id];
