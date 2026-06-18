@@ -154,6 +154,16 @@ body{font-family:'Barlow',Arial,sans-serif;font-size:22px;background:#1a1a1a;col
 .print-ex-inst{font-size:15px;color:#333;line-height:1.4}
 .print-ex-sets{background:#f5f5f5;border-top:1px solid #ddd;margin-top:6px;padding:4px 6px;font-size:15px}
 .print-footer{margin-top:14px;font-size:14px;color:#777;text-align:center;border-top:1px solid #ddd;padding-top:6px}
+/* CALENDAR */
+.cal-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+.cal-day{border:1px solid #ddd;border-radius:6px;border-top:3px solid #cc2200;break-inside:avoid;page-break-inside:avoid}
+.cal-day-header{background:#1a1a1a;color:#fff;padding:6px 10px;font-size:15px;font-weight:700;display:flex;justify-content:space-between;align-items:center;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px}
+.cal-day-time{font-size:12px;font-weight:400;opacity:.75;letter-spacing:0}
+.cal-day-body{padding:6px 8px}
+.cal-ex-row{display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid #f0f0f0;font-size:12px}
+.cal-ex-row:last-child{border-bottom:none}
+.cal-ex-step{font-size:10px;color:#aaa;min-width:14px;font-weight:700;flex-shrink:0}
+.cal-ex-name{flex:1;font-weight:500;font-size:13px}
 .print-hyper-note{background:#e8eeff;border:1px solid #1565c0;border-radius:4px;padding:6px 10px;margin-bottom:10px;font-size:14px;color:#1565c0;font-weight:700}
 /* LIBRARY */
 .lib-section{margin-bottom:22px}
@@ -623,6 +633,22 @@ const EX_TYPE={
   b1:'static stabilization',b2:'static stabilization',b3:'dynamic stabilization',b4:'strength',b5:'dynamic stabilization',b6:'dynamic stabilization',b7:'dynamic stabilization',b8:'dynamic stabilization',b9:'dynamic stabilization',
   co1:'static stabilization',co2:'dynamic stabilization',co3:'mobility',co4:'dynamic stabilization',co5:'dynamic stabilization',co6:'flexibility',co7:'dynamic stabilization'
 };
+const EX_DURATION={
+  l1:160,l2:140,l3:310,l4:220,l5:330,l6:330,l7:310,l8:330,l9:190,
+  s1:160,s2:160,s3:258,s4:330,s5:310,s6:270,s7:240,s8:220,s9:145,
+  sh1:120,sh2:140,sh3:265,sh4:270,sh5:258,sh6:180,sh7:366,sh8:240,sh9:160,
+  t1:160,t2:270,t3:120,t4:258,t5:258,t6:330,t7:366,t8:366,
+  c1:140,c2:140,c3:145,c4:120,c5:160,c6:270,c7:190,c8:190,c9:330,
+  b1:310,b2:330,b3:310,b4:315,b5:220,b6:240,b7:220,b8:310,b9:310,
+  co1:240,co2:330,co3:180,co4:330,co5:330,co6:180,co7:330
+};
+const FREQ_BY_TYPE={
+  'flexibility':'5x/week',
+  'mobility':'3–4x/week',
+  'static stabilization':'3–4x/week',
+  'dynamic stabilization':'3–4x/week',
+  'strength':'2–3x/week'
+};
 const EXERCISE_TARGETS={
   l1:'hip-flexors',l2:'posterior-hip',l3:'quadriceps',l4:'quadriceps',l5:'quadriceps',l6:'core-anterior',l7:'quadriceps',l8:'hip-abductors',l9:'glutes',
   s1:'calves-ankle',s2:'hip-flexors',s3:'glutes',s4:'glutes',s5:'single-leg-balance',s6:'hip-abductors',s7:'hip-abductors',s8:'single-leg-balance',s9:'posterior-hip',
@@ -650,7 +676,7 @@ const MOVEMENT_FAULTS={
 };
 const QUALITY_TYPES=['flexibility','mobility','static stabilization','dynamic stabilization','strength'];
 const QUALITY_LABELS={'flexibility':'Flexibility','mobility':'Mobility','static stabilization':'Static Stabilization','dynamic stabilization':'Dynamic Stabilization','strength':'Strength'};
-let records=[], editingId=null, selectedExercises={}, customSetsReps={}, suggestedKeys={}, hyperSuggestedKeys={}, currentEmpForSheet=null, oaActive=false, libraryBuilt=false;
+let records=[], editingId=null, selectedExercises={}, customSetsReps={}, suggestedKeys={}, hyperSuggestedKeys={}, currentEmpForSheet=null, oaActive=false, libraryBuilt=false, _pendingSheet=null;
 let observations={lunge:{},sld:{},shoulder:{},trunk:{},cervical:{}};
 let qualityFocus={lunge:[],sld:[],shoulder:[],trunk:[],cervical:[]};
 let sortCol='date', sortDir='desc';
@@ -1071,6 +1097,75 @@ function getAllExercises(){const a=[];Object.values(EXERCISES).forEach(c=>a.push
 function buildPrintSheet(){
   const all=getAllExercises(),chosen=all.filter(e=>selectedExercises[e.id]);
   if(!chosen.length){alert('Please select at least one exercise.');return;}
+  const totalSec=chosen.reduce((s,ex)=>s+(EX_DURATION[ex.id]||0),0),totalMin=Math.round(totalSec/60);
+  if(totalMin>20){_pendingSheet={chosen,totalMin};showVolumeWarning(chosen,totalMin);return;}
+  _renderPrintSheet(chosen,totalMin);
+}
+
+function showVolumeWarning(chosen,totalMin){
+  const over=totalMin-20;
+  const top=[...chosen].sort((a,b)=>(EX_DURATION[b.id]||0)-(EX_DURATION[a.id]||0)).slice(0,5);
+  const listHtml=top.map(ex=>`<div style="padding:4px 0;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center"><span>${ex.name}</span><span style="color:#888;white-space:nowrap;margin-left:16px;font-size:12px">~${((EX_DURATION[ex.id]||0)/60).toFixed(1)} min</span></div>`).join('');
+  let el=document.getElementById('vol-warning-overlay');
+  if(!el){el=document.createElement('div');el.id='vol-warning-overlay';document.body.appendChild(el);}
+  el.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  el.innerHTML=`<div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:460px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.25);">
+    <div style="font-size:18px;font-weight:700;color:#cc2200;margin-bottom:8px;">⚠ Session exceeds 20-minute guideline</div>
+    <p style="color:#444;margin:0 0 16px;font-size:14px;">These exercises total approximately <strong>~${totalMin} min</strong> — about <strong>${over} min</strong> over the guideline. Consider trimming before printing.</p>
+    <div style="font-size:11px;font-weight:700;color:#999;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;">Top time contributors</div>
+    <div style="font-size:13px;margin-bottom:20px;">${listHtml}</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+      <button class="btn btn-outline" onclick="dismissVolumeWarning()">Trim Manually</button>
+      <button class="btn" onclick="proceedWithSheet()" style="background:#555;color:#fff;">Continue Anyway</button>
+      <button class="btn" disabled title="Coming in a future update" style="opacity:.4;cursor:not-allowed;background:#ccc;color:#fff;">Auto-Adjust ▸</button>
+    </div>
+  </div>`;
+}
+
+function dismissVolumeWarning(){
+  const el=document.getElementById('vol-warning-overlay');
+  if(el)el.style.display='none';
+  _pendingSheet=null;
+}
+
+function proceedWithSheet(){
+  const el=document.getElementById('vol-warning-overlay');
+  if(el)el.style.display='none';
+  if(_pendingSheet){_renderPrintSheet(_pendingSheet.chosen,_pendingSheet.totalMin);_pendingSheet=null;}
+}
+
+function _orderDayExercises(dayExs,allChosen){
+  const workCats=new Set(allChosen.filter(e=>['strength','dynamic stabilization','static stabilization'].includes(EX_TYPE[e.id])).map(e=>EXERCISE_CATEGORY[e.id]));
+  const rank=ex=>{const t=EX_TYPE[ex.id],c=EXERCISE_CATEGORY[ex.id];if(t==='mobility')return 0;if(t==='flexibility'&&workCats.has(c))return 1;if(t==='strength')return 2;if(t==='dynamic stabilization')return 3;if(t==='static stabilization')return 4;return 5;};
+  return[...dayExs].sort((a,b)=>rank(a)-rank(b));
+}
+
+function _buildCalendarPage(chosen){
+  const TYPE_DAYS={'flexibility':[1,2,3,4,5],'mobility':[1,3,5],'dynamic stabilization':[1,3,5],'static stabilization':[1,3,5],'strength':[1,3,5]};
+  const dayMap={};
+  chosen.forEach(ex=>{
+    (TYPE_DAYS[EX_TYPE[ex.id]]||[1,3,5]).forEach(d=>{if(!dayMap[d])dayMap[d]=[];dayMap[d].push(ex);});
+  });
+  const activeDays=Object.keys(dayMap).map(Number).sort((a,b)=>a-b);
+  const dayHtml=activeDays.map(d=>{
+    const exs=_orderDayExercises(dayMap[d],chosen);
+    const dayMin=Math.round(exs.reduce((s,ex)=>s+(EX_DURATION[ex.id]||0),0)/60);
+    let step=1;
+    const rows=exs.map(ex=>{const t=EX_TYPE[ex.id];const badge=t?`<span class="ex-type-badge ex-type-${t.replace(/\s+/g,'-')}" style="font-size:10px">${t[0].toUpperCase()+t.slice(1)}</span>`:'';return`<div class="cal-ex-row"><span class="cal-ex-step">${step++}</span><span class="cal-ex-name">${ex.name}</span>${badge}</div>`;}).join('');
+    return`<div class="cal-day"><div class="cal-day-header">Day ${d}<span class="cal-day-time">~${dayMin} min</span></div><div class="cal-day-body">${rows}</div></div>`;
+  }).join('');
+  const maxDay=activeDays.length?Math.max(...activeDays):5;
+  const restDays=[];for(let d=maxDay+1;d<=7;d++)restDays.push(d);
+  const restNote=restDays.length?`<p style="margin:8px 0 0;font-size:13px;color:#888;text-align:center">Day${restDays.length>1?'s':''} ${restDays.join(' & ')} — Rest</p>`:'';
+  return`<div style="page-break-before:always">
+    <div class="print-header"><div><img src="/images/ati-logo.jpg" style="height:80px;width:auto"></div><div class="print-title">Weekly Exercise Schedule</div></div>
+    <div class="cal-grid">${dayHtml}</div>
+    ${restNote}
+    <div class="print-footer">ATI Worksite Solutions — Hendrickson &nbsp;|&nbsp; Generated ${new Date().toLocaleDateString()}<br>These exercises are personalized recommendations. Please perform as directed by your provider.</div>
+  </div>`;
+}
+
+function _renderPrintSheet(chosen,totalMin){
   const name=document.getElementById('ex-emp-name').value||'Employee';
   const date=document.getElementById('ex-date').value;
   const prov=document.getElementById('ex-provider').value;
@@ -1090,6 +1185,7 @@ function buildPrintSheet(){
       <div class="print-info-item"><div class="print-info-label">Provider</div>${prov||'ATI Worksite Solutions'}</div>
       <div style="grid-column:span 2;text-align:center;padding:2px 0"><span style="display:inline-block;border-bottom:1px solid #333;padding:0 12px 2px"><div class="print-info-label">Follow-Up Assessment Date</div>${rec?.followup&&rec?.date?getFuDate(rec.date,parseInt(rec.followup)):'—'}</span></div>
       <div style="grid-column:span 2;text-align:center;padding:2px 0"><span style="display:inline-block;border-bottom:1px solid #333;padding:0 12px 2px"><div class="print-info-label">Re-Assessment Date</div>${rec?.retest&&rec?.date?(()=>{const d=new Date(rec.date);d.setMonth(d.getMonth()+parseInt(rec.retest));return d.toLocaleDateString();})():'—'}</span></div>
+      <div style="grid-column:span 4;text-align:center;padding:4px 0;font-size:13px;color:#444"><strong>Est. Session Time:</strong> ~${totalMin} min &nbsp;|&nbsp; <strong>Exercises:</strong> ${chosen.length}</div>
       ${rec?`<div style="grid-column:span 4;text-align:center;padding:4px 0"><span style="display:inline-block;border-bottom:2px solid #cc2200;padding:0 24px 4px"><div class="print-info-label" style="font-size:13px">HMA Score</div><span style="font-size:32px;font-weight:900;font-family:'Barlow Condensed',sans-serif;color:#1a1a1a">${rec.total}<span style="font-size:18px;font-weight:400;color:#999">/15</span></span></span></div>`:''}
     </div>
     ${hyperNote}${oaNote}
@@ -1106,7 +1202,6 @@ function buildPrintSheet(){
         if(!catEx.length)return'';
         let scoreHtml='';
         if(rec?.scores?.[cat.key]){const s=rec.scores[cat.key];const a=s[0]?.val,b=s[1]?.val;if(a!=null&&b!=null)scoreHtml=`<span class="print-section-score">Score: ${Math.min(a,b)}/3</span>`;}
-        const t=cat=>EX_TYPE[cat]||'';
         return`<div class="print-section">
           <div class="print-section-header"><span>${cat.label}</span>${scoreHtml}</div>
           <div class="print-exercises">${catEx.map(ex=>{const tp=EX_TYPE[ex.id];const tBadge=tp?`<span class="ex-type-badge ex-type-${tp.replace(/\s+/g,'-')}">${tp[0].toUpperCase()+tp.slice(1)}</span>`:'';return`
@@ -1114,13 +1209,14 @@ function buildPrintSheet(){
               ${imgTag(ex.id,true)}
               <div class="print-ex-name">${ex.name}${tBadge}</div>
               <div class="print-ex-inst">${ex.inst}</div>
-              <div class="print-ex-sets"><div><strong>Sets/Reps:</strong> ${customSetsReps[ex.id]||ex.sets}</div><div><strong>Frequency:</strong> Daily</div></div>
+              <div class="print-ex-sets"><div><strong>Sets/Reps:</strong> ${customSetsReps[ex.id]||ex.sets}</div><div><strong>Frequency:</strong> ${FREQ_BY_TYPE[EX_TYPE[ex.id]]||'Daily'}</div></div>
             </div>`;}).join('')}
           </div>
         </div>`;
       }).join('');
     })()}
-    <div class="print-footer">ATI Worksite Solutions — Hendrickson &nbsp;|&nbsp; Generated ${new Date().toLocaleDateString()}<br>These exercises are personalized recommendations. Please perform as directed by your provider.</div>`;
+    <div class="print-footer">ATI Worksite Solutions — Hendrickson &nbsp;|&nbsp; Generated ${new Date().toLocaleDateString()}<br>These exercises are personalized recommendations. Please perform as directed by your provider.</div>
+    ${_buildCalendarPage(chosen)}`;
   document.getElementById('ex-builder').classList.add('hidden');
   document.getElementById('ex-print').classList.remove('hidden');
   window.scrollTo({top:0,behavior:'smooth'});
