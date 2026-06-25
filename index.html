@@ -631,6 +631,15 @@ const CORE_EX=[
   {id:'co7',name:'Rotation Lunge',inst:'Stand holding a small ball. Step forward into a lunge. Push ball out in front of you and twist your body over your front leg.',sets:'3x10 each side'}
 ];
 
+// Single source of truth for each movement category's full exercise list,
+// including the cross-bundled Balance (into SLD) and Core (into Trunk) exercises.
+const CAT_EXERCISES={
+  lunge:EXERCISES.lunge.exercises,
+  sld:[...EXERCISES.sld.exercises,...BALANCE_EX],
+  shoulder:EXERCISES.shoulder.exercises,
+  trunk:[...EXERCISES.trunk.exercises,...CORE_EX],
+  cervical:EXERCISES.cervical.exercises
+};
 const OA_CAUTION=new Set(['l3','l4','l5','l7','l8','s1','s2','b3','b4','b6','b8','b9','co5','co7']);
 const EX_TYPE={
   l1:'flexibility',l2:'flexibility',l3:'strength',l4:'static stabilization',l5:'dynamic stabilization',l6:'dynamic stabilization',l7:'strength',l8:'dynamic stabilization',l9:'static stabilization',
@@ -698,7 +707,6 @@ async function loadImageRegistry(){
   // Fill in bundled images for any not already customized
   Object.keys(DEFAULT_IMAGES).forEach(id=>{if(!IMAGE_REGISTRY[id])IMAGE_REGISTRY[id]=DEFAULT_IMAGES[id];});
 }
-async function saveImageRegistry(){try{await window.storage.set('hma-images-v2',JSON.stringify(IMAGE_REGISTRY));}catch(e){}}
 
 function showTab(t){
   ['records','new','exercises','library'].forEach(x=>{document.getElementById('content-'+x).classList.add('hidden');document.getElementById('tab-'+x).classList.remove('active');});
@@ -816,7 +824,7 @@ function updateTotals(){
   document.getElementById('pain-flag').classList.toggle('visible',hasPain);
   const ps=document.getElementById('f-plan'),pa=document.getElementById('f-pa');
   if(hasPain){ps.value='No';ps.disabled=true;ps.className='field-locked-no';pa.value='Yes';pa.disabled=true;pa.className='field-locked-yes';}
-  else{ps.value=total<13?'Yes':'No';ps.disabled=false;ps.className='';pa.value='No';pa.disabled=false;pa.className='';}
+  else{ps.value=total<11?'Yes':'No';ps.disabled=false;ps.className='';pa.value='No';pa.disabled=false;pa.className='';}
 }
 
 function getScoresSnapshot(){const s={};MOVEMENTS.forEach(m=>{s[m.key]=[{...scores[m.key][0]},{...scores[m.key][1]}];});return s;}
@@ -838,8 +846,13 @@ function getFormData(){
     observations:JSON.parse(JSON.stringify(observations)),qualityFocus:JSON.parse(JSON.stringify(qualityFocus))};
 }
 
-function saveRecord(){const d=getFormData();if(!d.name.trim()){alert('Please enter employee name.');return;}if(editingId){const i=records.findIndex(r=>r.id===editingId);if(i>-1)records[i]=d;}else records.unshift(d);saveRecords();clearForm();renderTable();showTab('records');}
-function saveAndBuildSheet(){const d=getFormData();if(!d.name.trim()){alert('Please enter employee name.');return;}if(editingId){const i=records.findIndex(r=>r.id===editingId);if(i>-1)records[i]=d;}else records.unshift(d);saveRecords();clearForm();renderTable();openExerciseBuilder(d);}
+function validateRecord(d){
+  if(!d.name.trim()){alert('Please enter employee name.');return false;}
+  if(!d.date){alert('Please enter the date of assessment.');return false;}
+  return true;
+}
+function saveRecord(){const d=getFormData();if(!validateRecord(d))return;if(editingId){const i=records.findIndex(r=>r.id===editingId);if(i>-1)records[i]=d;}else records.unshift(d);saveRecords();clearForm();renderTable();showTab('records');}
+function saveAndBuildSheet(){const d=getFormData();if(!validateRecord(d))return;if(editingId){const i=records.findIndex(r=>r.id===editingId);if(i>-1)records[i]=d;}else records.unshift(d);saveRecords();clearForm();renderTable();openExerciseBuilder(d);}
 
 function clearForm(){
   editingId=null;document.getElementById('form-title').textContent='New Assessment';
@@ -899,8 +912,7 @@ function editRecord(id){
 function deleteRecord(id){if(!confirm('Delete this record?'))return;records=records.filter(r=>r.id!==id);saveRecords();renderTable();}
 
 function exName(id){
-  const all=[...EXERCISES.lunge.exercises,...EXERCISES.sld.exercises,...EXERCISES.shoulder.exercises,...EXERCISES.trunk.exercises,...EXERCISES.cervical.exercises,...BALANCE_EX,...CORE_EX];
-  return all.find(e=>e.id===id)?.name||id;
+  return Object.values(CAT_EXERCISES).flat().find(e=>e.id===id)?.name||id;
 }
 function catLabel(key){return{lunge:'Forward Lunge',sld:'Single Leg Dip',shoulder:'Shoulder Reach',trunk:'Trunk Rotation',cervical:'Cervical'}[key]||key;}
 function formatTarget(t){return t.replace(/-/g,' ');}
@@ -1014,11 +1026,10 @@ function openExerciseBuilder(rec){
     });
     // Quality focus bias — add exercises matching preferred types on top of auto-suggestions
     const recQF=rec.qualityFocus||{};
-    const exPool={lunge:EXERCISES.lunge.exercises,sld:[...EXERCISES.sld.exercises,...BALANCE_EX],shoulder:EXERCISES.shoulder.exercises,trunk:[...EXERCISES.trunk.exercises,...CORE_EX],cervical:EXERCISES.cervical.exercises};
     MOVEMENTS.forEach(m=>{
       const prefs=recQF[m.key]||[];
       if(!prefs.length)return;
-      (exPool[m.key]||[]).forEach(ex=>{if(prefs.includes(EX_TYPE[ex.id]))selectedExercises[ex.id]=true;});
+      (CAT_EXERCISES[m.key]||[]).forEach(ex=>{if(prefs.includes(EX_TYPE[ex.id]))selectedExercises[ex.id]=true;});
     });
   }
   deduplicateExercises(rec);
@@ -1055,13 +1066,7 @@ function buildExerciseUI(){
       conflictEl.innerHTML='';
     }
   }
-  const cats=[
-    {key:'lunge',data:EXERCISES.lunge},
-    {key:'sld',data:{...EXERCISES.sld,exercises:[...EXERCISES.sld.exercises,...BALANCE_EX]}},
-    {key:'shoulder',data:EXERCISES.shoulder},
-    {key:'trunk',data:{...EXERCISES.trunk,exercises:[...EXERCISES.trunk.exercises,...CORE_EX]}},
-    {key:'cervical',data:EXERCISES.cervical}
-  ];
+  const cats=['lunge','sld','shoulder','trunk','cervical'].map(key=>({key,data:{label:EXERCISES[key].label,exercises:CAT_EXERCISES[key]}}));
   document.getElementById('ex-categories').innerHTML=cats.map(({key,data})=>{
     const isHyper=hyperSuggestedKeys[key];
     const isMobility=suggestedKeys[key];
@@ -1100,7 +1105,7 @@ function toggleEx(id){
 }
 function clearSelections(){selectedExercises={};customSetsReps={};buildExerciseUI();}
 function setSetsReps(id,val){customSetsReps[id]=val;}
-function getAllExercises(){const a=[];Object.values(EXERCISES).forEach(c=>a.push(...c.exercises));a.push(...BALANCE_EX,...CORE_EX);return a;}
+function getAllExercises(){return Object.values(CAT_EXERCISES).flat();}
 
 function buildPrintSheet(){
   const all=getAllExercises(),chosen=all.filter(e=>selectedExercises[e.id]);
@@ -1198,13 +1203,8 @@ function _renderPrintSheet(chosen,totalMin){
     </div>
     ${hyperNote}${oaNote}
     ${(()=>{
-      const PCATS=[
-        {key:'lunge',label:'Forward Lunge',ids:new Set(EXERCISES.lunge.exercises.map(e=>e.id))},
-        {key:'sld',label:'Single Leg Dip',ids:new Set([...EXERCISES.sld.exercises.map(e=>e.id),...BALANCE_EX.map(e=>e.id)])},
-        {key:'shoulder',label:'Shoulder Reach',ids:new Set(EXERCISES.shoulder.exercises.map(e=>e.id))},
-        {key:'trunk',label:'Trunk Rotation',ids:new Set([...EXERCISES.trunk.exercises.map(e=>e.id),...CORE_EX.map(e=>e.id)])},
-        {key:'cervical',label:'Cervical',ids:new Set(EXERCISES.cervical.exercises.map(e=>e.id))}
-      ];
+      const PLABELS={lunge:'Forward Lunge',sld:'Single Leg Dip',shoulder:'Shoulder Reach',trunk:'Trunk Rotation',cervical:'Cervical'};
+      const PCATS=['lunge','sld','shoulder','trunk','cervical'].map(key=>({key,label:PLABELS[key],ids:new Set(CAT_EXERCISES[key].map(e=>e.id))}));
       return PCATS.map(cat=>{
         const catEx=chosen.filter(e=>cat.ids.has(e.id));
         if(!catEx.length)return'';
@@ -1241,13 +1241,6 @@ function printSheet(){
   document.title=datePart?`${name} ${datePart}`:name;
   window.addEventListener('afterprint',function restore(){document.title=orig;window.removeEventListener('afterprint',restore);});
   window.print();
-}
-
-function setupImageUpload(){
-  const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.style.display='none';inp.id='img-file-input';document.body.appendChild(inp);
-  let pendingId=null;
-  inp.onchange=async(e)=>{const file=e.target.files[0];if(!file||!pendingId)return;const reader=new FileReader();reader.onload=async(ev)=>{IMAGE_REGISTRY[pendingId]=ev.target.result;await saveImageRegistry();buildExerciseUI();};reader.readAsDataURL(file);inp.value='';};
-  window.assignImg=(id)=>{pendingId=id;inp.click();};
 }
 
 function toggleDark(){
@@ -1352,13 +1345,8 @@ function libCard(ex){
 }
 
 function buildLibrary(){
-  const allCats=[
-    {key:'lunge',label:'Forward Lunges',exercises:EXERCISES.lunge.exercises},
-    {key:'sld',label:'Single Leg Dip + Balance',exercises:[...EXERCISES.sld.exercises,...BALANCE_EX]},
-    {key:'shoulder',label:'Shoulder Reach',exercises:EXERCISES.shoulder.exercises},
-    {key:'trunk',label:'Trunk Rotation + Core',exercises:[...EXERCISES.trunk.exercises,...CORE_EX]},
-    {key:'cervical',label:'Cervical',exercises:EXERCISES.cervical.exercises}
-  ];
+  const LIB_LABELS={lunge:'Forward Lunges',sld:'Single Leg Dip + Balance',shoulder:'Shoulder Reach',trunk:'Trunk Rotation + Core',cervical:'Cervical'};
+  const allCats=['lunge','sld','shoulder','trunk','cervical'].map(key=>({key,label:LIB_LABELS[key],exercises:CAT_EXERCISES[key]}));
   document.getElementById('lib-categories').innerHTML=allCats.map(cat=>`
     <div class="lib-section" id="libsec-${cat.key}">
       <div class="lib-section-title">${cat.label} <span style="font-size:15px;font-weight:400;opacity:.6">${cat.exercises.length} exercises</span></div>
@@ -1368,13 +1356,7 @@ function buildLibrary(){
 
 function filterLibrary(){
   const q=(document.getElementById('lib-search')?.value||'').toLowerCase().trim();
-  const allCats=[
-    {key:'lunge',exercises:EXERCISES.lunge.exercises},
-    {key:'sld',exercises:[...EXERCISES.sld.exercises,...BALANCE_EX]},
-    {key:'shoulder',exercises:EXERCISES.shoulder.exercises},
-    {key:'trunk',exercises:[...EXERCISES.trunk.exercises,...CORE_EX]},
-    {key:'cervical',exercises:EXERCISES.cervical.exercises}
-  ];
+  const allCats=['lunge','sld','shoulder','trunk','cervical'].map(key=>({key,exercises:CAT_EXERCISES[key]}));
   allCats.forEach(cat=>{
     const grid=document.getElementById('libgrid-'+cat.key);
     const section=document.getElementById('libsec-'+cat.key);
@@ -1394,7 +1376,6 @@ async function init(){
   buildScoreGrid();
   clearForm();
   loadRecords();
-  setupImageUpload();
 }
 init();
 </script>
