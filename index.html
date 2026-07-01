@@ -159,6 +159,9 @@ body{font-family:'Barlow',Arial,sans-serif;font-size:22px;background:#1a1a1a;col
 .cal-day{border:1px solid #ddd;border-radius:6px;border-top:3px solid #cc2200;break-inside:avoid;page-break-inside:avoid}
 .cal-day-header{background:#1a1a1a;color:#fff;padding:6px 10px;font-size:15px;font-weight:700;display:flex;justify-content:space-between;align-items:center;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px}
 .cal-day-time{font-size:12px;font-weight:400;opacity:.75;letter-spacing:0}
+.cal-day.over{border-top-color:#e65100}
+.cal-day.over .cal-day-header{background:#7a2e00}
+.cal-day-time.over{opacity:1;color:#ffcc80;font-weight:700}
 .cal-day-body{padding:6px 8px}
 .cal-ex-row{display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid #f0f0f0;font-size:12px}
 .cal-ex-row:last-child{border-bottom:none}
@@ -1110,27 +1113,32 @@ function getAllExercises(){return Object.values(CAT_EXERCISES).flat();}
 function buildPrintSheet(){
   const all=getAllExercises(),chosen=all.filter(e=>selectedExercises[e.id]);
   if(!chosen.length){alert('Please select at least one exercise.');return;}
-  const totalSec=chosen.reduce((s,ex)=>s+(EX_DURATION[ex.id]||0),0),totalMin=Math.round(totalSec/60);
-  if(totalMin>20){_pendingSheet={chosen,totalMin};showVolumeWarning(chosen,totalMin);return;}
-  _renderPrintSheet(chosen,totalMin);
+  const sched=_computeSchedule(chosen,currentEmpForSheet,false);
+  if(sched.peakSec>SESSION_BUDGET_SEC){_pendingSheet={chosen,sched};showVolumeWarning(chosen,sched);return;}
+  _renderPrintSheet(chosen,sched);
 }
 
-function showVolumeWarning(chosen,totalMin){
-  const over=totalMin-20;
-  const top=[...chosen].sort((a,b)=>(EX_DURATION[b.id]||0)-(EX_DURATION[a.id]||0)).slice(0,5);
+function showVolumeWarning(chosen,sched){
+  const L=sched.dayLoad;
+  const overDays=SCHED_WORK_DAYS.filter(d=>L[d]>SESSION_BUDGET_SEC);
+  const worst=SCHED_WORK_DAYS.reduce((a,d)=>L[d]>L[a]?d:a,SCHED_WORK_DAYS[0]);
+  const worstMin=Math.round(L[worst]/60),over=worstMin-20;
+  const onWorst=chosen.filter(e=>(sched.days[e.id]||[]).includes(worst));
+  const top=[...onWorst].sort((a,b)=>(EX_DURATION[b.id]||0)-(EX_DURATION[a.id]||0)).slice(0,5);
   const listHtml=top.map(ex=>`<div style="padding:4px 0;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center"><span>${ex.name}</span><span style="color:#888;white-space:nowrap;margin-left:16px;font-size:12px">~${((EX_DURATION[ex.id]||0)/60).toFixed(1)} min</span></div>`).join('');
+  const dayLabel=overDays.length>1?`${overDays.length} days exceed the ~20-min goal`:`Day ${worst} exceeds the ~20-min goal`;
   let el=document.getElementById('vol-warning-overlay');
   if(!el){el=document.createElement('div');el.id='vol-warning-overlay';document.body.appendChild(el);}
   el.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
   el.innerHTML=`<div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:460px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.25);">
-    <div style="font-size:18px;font-weight:700;color:#cc2200;margin-bottom:8px;">⚠ Session exceeds 20-minute guideline</div>
-    <p style="color:#444;margin:0 0 16px;font-size:14px;">These exercises total approximately <strong>~${totalMin} min</strong> — about <strong>${over} min</strong> over the guideline. Consider trimming before printing.</p>
-    <div style="font-size:11px;font-weight:700;color:#999;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;">Top time contributors</div>
+    <div style="font-size:18px;font-weight:700;color:#cc2200;margin-bottom:8px;">⚠ ${dayLabel}</div>
+    <p style="color:#444;margin:0 0 16px;font-size:14px;">The heaviest is <strong>Day ${worst} (~${worstMin} min)</strong> — about <strong>${over} min</strong> over. Auto-Adjust redistributes across the week and trims lowest-priority work per day; every exercise stays in the plan.</p>
+    <div style="font-size:11px;font-weight:700;color:#999;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;">Top time contributors — Day ${worst}</div>
     <div style="font-size:13px;margin-bottom:20px;">${listHtml}</div>
     <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
       <button class="btn btn-outline" onclick="dismissVolumeWarning()">Trim Manually</button>
       <button class="btn" onclick="proceedWithSheet()" style="background:#555;color:#fff;">Continue Anyway</button>
-      <button class="btn" disabled title="Coming in a future update" style="opacity:.4;cursor:not-allowed;background:#ccc;color:#fff;">Auto-Adjust ▸</button>
+      <button class="btn" onclick="autoAdjustSheet()" style="background:#cc2200;color:#fff;">Auto-Adjust ▸</button>
     </div>
   </div>`;
 }
@@ -1144,7 +1152,91 @@ function dismissVolumeWarning(){
 function proceedWithSheet(){
   const el=document.getElementById('vol-warning-overlay');
   if(el)el.style.display='none';
-  if(_pendingSheet){_renderPrintSheet(_pendingSheet.chosen,_pendingSheet.totalMin);_pendingSheet=null;}
+  if(_pendingSheet){_renderPrintSheet(_pendingSheet.chosen,_pendingSheet.sched);_pendingSheet=null;}
+}
+
+function autoAdjustSheet(){
+  const el=document.getElementById('vol-warning-overlay');
+  if(el)el.style.display='none';
+  if(_pendingSheet){_renderPrintSheet(_pendingSheet.chosen,_computeSchedule(_pendingSheet.chosen,currentEmpForSheet,true));_pendingSheet=null;}
+}
+
+// ---- Session scheduler: a "session" = one calendar day; budget ~20 min/day ----
+const SESSION_BUDGET_SEC=20*60;
+const SCHED_WORK_DAYS=[1,2,3,4,5];
+const SCHED_TYPE_DAYS={'flexibility':[1,2,3,4,5],'mobility':[1,3,5],'dynamic stabilization':[1,3,5],'static stabilization':[1,3,5],'strength':[1,3,5]};
+// Protect weight: higher = kept longer. flexibility yields time first, strength last.
+const SCHED_TYPE_PRIORITY={'flexibility':100,'mobility':200,'static stabilization':300,'dynamic stabilization':400,'strength':500};
+
+function _exPriority(id,rec){
+  const type=EX_TYPE[id],cat=EXERCISE_CATEGORY[id];
+  let p=SCHED_TYPE_PRIORITY[type]||0;
+  if(rec&&rec.scores&&rec.scores[cat]){
+    const s=rec.scores[cat];
+    const cs=(s[0]&&s[0].val!=null&&s[1]&&s[1].val!=null)?Math.min(s[0].val,s[1].val):3;
+    p+=(3-cs)*15; // protect corrective work for the more-impaired patterns (max +45, stays within tier)
+  }
+  if(rec&&rec.hypermobile&&rec.hypermobile[cat]&&(type==='static stabilization'||type==='dynamic stabilization'))p+=40; // stability IS the goal in hypermobile areas
+  return p;
+}
+
+// Build a weekly day-assignment. autoAdjust=false → current fixed schedule; true → redistribute then trim.
+// Returns {days:{id:[dayNums]}, adjusted, trims:[{id,name,day}], unresolved, peakSec, dayLoad:{d:sec}}
+function _computeSchedule(chosen,rec,autoAdjust){
+  const dur=id=>EX_DURATION[id]||0;
+  const days={};
+  chosen.forEach(ex=>{days[ex.id]=(SCHED_TYPE_DAYS[EX_TYPE[ex.id]]||[1,3,5]).slice();});
+  const loadOf=()=>{const L={1:0,2:0,3:0,4:0,5:0};chosen.forEach(ex=>days[ex.id].forEach(d=>L[d]+=dur(ex.id)));return L;};
+  const peakOf=L=>Math.max(...SCHED_WORK_DAYS.map(d=>L[d]));
+  if(autoAdjust){
+    const isFlex=id=>EX_TYPE[id]==='flexibility';
+    const isStrength=id=>EX_TYPE[id]==='strength';
+    const nonConsec=arr=>{const s=[...arr].sort((a,b)=>a-b);for(let i=1;i<s.length;i++)if(s[i]-s[i-1]===1)return false;return true;};
+    // Redistribute: relocate single instances to flatten load (no dose change) by minimizing sum-of-squares.
+    // flexibility is on every day already so it never moves; strength keeps non-consecutive days.
+    const balance=()=>{
+      for(;;){
+        const L=loadOf();let best=null,bestDelta=-1e-6;
+        for(const ex of chosen){
+          if(isFlex(ex.id))continue;
+          const d0=dur(ex.id),cur=days[ex.id];
+          for(const from of cur)for(const to of SCHED_WORK_DAYS){
+            if(cur.includes(to))continue;
+            if(isStrength(ex.id)&&!nonConsec(cur.filter(x=>x!==from).concat(to)))continue;
+            const delta=2*d0*(L[to]-L[from])+2*d0*d0; // Δ(sum of squares) for moving this instance
+            if(delta<bestDelta){bestDelta=delta;best={id:ex.id,from,to};}
+          }
+        }
+        if(!best)break;
+        days[best.id]=days[best.id].filter(x=>x!==best.from).concat(best.to);
+      }
+    };
+    balance();
+    const trims=[];let unresolved=false;
+    for(;;){
+      const L=loadOf();
+      // Heaviest-first over-budget days; trim from the first one that still has something reducible.
+      const overDays=SCHED_WORK_DAYS.filter(d=>L[d]>SESSION_BUDGET_SEC).sort((a,b)=>L[b]-L[a]);
+      if(!overDays.length)break;
+      let done=false;
+      for(const D of overDays){
+        // Drop the lowest-priority instance still reducible (never below 1 day); tie → longest first.
+        const cands=chosen.filter(ex=>days[ex.id].includes(D)&&days[ex.id].length>1)
+          .sort((a,b)=>_exPriority(a.id,rec)-_exPriority(b.id,rec)||dur(b.id)-dur(a.id));
+        if(!cands.length)continue;
+        const v=cands[0];
+        days[v.id]=days[v.id].filter(x=>x!==D);
+        trims.push({id:v.id,name:v.name,day:D});
+        done=true;break;
+      }
+      if(!done){unresolved=true;break;} // no over-budget day has a reducible exercise → genuinely can't fit without dropping
+      balance(); // re-flatten after each removal
+    }
+    const L=loadOf();
+    return {days,adjusted:true,trims,unresolved,peakSec:peakOf(L),dayLoad:L};
+  }
+  const L=loadOf();
+  return {days,adjusted:false,trims:[],unresolved:false,peakSec:peakOf(L),dayLoad:L};
 }
 
 function _orderDayExercises(dayExs,allChosen){
@@ -1153,32 +1245,38 @@ function _orderDayExercises(dayExs,allChosen){
   return[...dayExs].sort((a,b)=>rank(a)-rank(b));
 }
 
-function _buildCalendarPage(chosen){
-  const TYPE_DAYS={'flexibility':[1,2,3,4,5],'mobility':[1,3,5],'dynamic stabilization':[1,3,5],'static stabilization':[1,3,5],'strength':[1,3,5]};
+function _buildCalendarPage(chosen,sched){
+  if(!sched)sched=_computeSchedule(chosen,currentEmpForSheet,false);
+  const days=sched.days;
   const dayMap={};
-  chosen.forEach(ex=>{
-    (TYPE_DAYS[EX_TYPE[ex.id]]||[1,3,5]).forEach(d=>{if(!dayMap[d])dayMap[d]=[];dayMap[d].push(ex);});
-  });
+  chosen.forEach(ex=>{(days[ex.id]||[]).forEach(d=>{if(!dayMap[d])dayMap[d]=[];dayMap[d].push(ex);});});
   const activeDays=Object.keys(dayMap).map(Number).sort((a,b)=>a-b);
   const dayHtml=activeDays.map(d=>{
     const exs=_orderDayExercises(dayMap[d],chosen);
-    const dayMin=Math.round(exs.reduce((s,ex)=>s+(EX_DURATION[ex.id]||0),0)/60);
+    const daySec=exs.reduce((s,ex)=>s+(EX_DURATION[ex.id]||0),0);
+    const dayMin=Math.round(daySec/60),over=daySec>SESSION_BUDGET_SEC;
     let step=1;
     const rows=exs.map(ex=>{const t=EX_TYPE[ex.id];const badge=t?`<span class="ex-type-badge ex-type-${t.replace(/\s+/g,'-')}" style="font-size:10px">${t[0].toUpperCase()+t.slice(1)}</span>`:'';return`<div class="cal-ex-row"><span class="cal-ex-step">${step++}</span><span class="cal-ex-name">${ex.name}</span>${badge}</div>`;}).join('');
-    return`<div class="cal-day"><div class="cal-day-header">Day ${d}<span class="cal-day-time">~${dayMin} min</span></div><div class="cal-day-body">${rows}</div></div>`;
+    return`<div class="cal-day${over?' over':''}"><div class="cal-day-header">Day ${d}<span class="cal-day-time${over?' over':''}">~${dayMin} min</span></div><div class="cal-day-body">${rows}</div></div>`;
   }).join('');
   const maxDay=activeDays.length?Math.max(...activeDays):5;
   const restDays=[];for(let d=maxDay+1;d<=7;d++)restDays.push(d);
   const restNote=restDays.length?`<p style="margin:8px 0 0;font-size:13px;color:#888;text-align:center">Day${restDays.length>1?'s':''} ${restDays.join(' & ')} — Rest</p>`:'';
+  const adjNote=sched.adjusted&&sched.trims.length?`<p style="margin:8px 0 0;font-size:12px;color:#e65100;text-align:center">Auto-adjusted to fit ~20 min/session — ${sched.trims.length} exercise-day${sched.trims.length>1?'s':''} redistributed or trimmed. Every exercise remains in the plan.</p>`:'';
+  const unresolvedNote=sched.unresolved?`<p style="margin:8px 0 0;font-size:12px;color:#cc2200;text-align:center;font-weight:700">⚠ A day still exceeds 20 min after adjustment — manual review recommended.</p>`:'';
   return`<div style="page-break-before:always">
     <div class="print-header"><div><img src="/images/ati-logo.jpg" style="height:80px;width:auto"></div><div class="print-title">Weekly Exercise Schedule</div></div>
     <div class="cal-grid">${dayHtml}</div>
     ${restNote}
+    ${adjNote}
+    ${unresolvedNote}
     <div class="print-footer">ATI Worksite Solutions — Hendrickson &nbsp;|&nbsp; Generated ${new Date().toLocaleDateString()}<br>These exercises are personalized recommendations. Please perform as directed by your provider.</div>
   </div>`;
 }
 
-function _renderPrintSheet(chosen,totalMin){
+function _renderPrintSheet(chosen,sched){
+  if(!sched)sched=_computeSchedule(chosen,currentEmpForSheet,false);
+  const peakMin=Math.round((sched.peakSec||0)/60);
   const name=document.getElementById('ex-emp-name').value||'Employee';
   const date=document.getElementById('ex-date').value;
   const prov=document.getElementById('ex-provider').value;
@@ -1198,7 +1296,7 @@ function _renderPrintSheet(chosen,totalMin){
       <div class="print-info-item"><div class="print-info-label">Provider</div>${prov||'ATI Worksite Solutions'}</div>
       <div style="grid-column:span 2;text-align:center;padding:2px 0"><span style="display:inline-block;border-bottom:1px solid #333;padding:0 12px 2px"><div class="print-info-label">Follow-Up Assessment Date</div>${rec?.followup&&rec?.date?getFuDate(rec.date,parseInt(rec.followup)):'—'}</span></div>
       <div style="grid-column:span 2;text-align:center;padding:2px 0"><span style="display:inline-block;border-bottom:1px solid #333;padding:0 12px 2px"><div class="print-info-label">Re-Assessment Date</div>${rec?.retest&&rec?.date?(()=>{const d=new Date(rec.date);d.setMonth(d.getMonth()+parseInt(rec.retest));return d.toLocaleDateString();})():'—'}</span></div>
-      <div style="grid-column:span 4;text-align:center;padding:4px 0;font-size:13px;color:#444"><strong>Est. Session Time:</strong> ~${totalMin} min &nbsp;|&nbsp; <strong>Exercises:</strong> ${chosen.length}</div>
+      <div style="grid-column:span 4;text-align:center;padding:4px 0;font-size:13px;color:#444"><strong>Est. Session Time (longest day):</strong> ~${peakMin} min &nbsp;|&nbsp; <strong>Exercises:</strong> ${chosen.length}</div>
       ${rec?`<div style="grid-column:span 4;text-align:center;padding:4px 0"><span style="display:inline-block;border-bottom:2px solid #cc2200;padding:0 24px 4px"><div class="print-info-label" style="font-size:13px">HMA Score</div><span style="font-size:32px;font-weight:900;font-family:'Barlow Condensed',sans-serif;color:#1a1a1a">${rec.total}<span style="font-size:18px;font-weight:400;color:#999">/15</span></span></span></div>`:''}
     </div>
     ${hyperNote}${oaNote}
@@ -1224,7 +1322,7 @@ function _renderPrintSheet(chosen,totalMin){
       }).join('');
     })()}
     <div class="print-footer">ATI Worksite Solutions — Hendrickson &nbsp;|&nbsp; Generated ${new Date().toLocaleDateString()}<br>These exercises are personalized recommendations. Please perform as directed by your provider.</div>
-    ${_buildCalendarPage(chosen)}`;
+    ${_buildCalendarPage(chosen,sched)}`;
   document.getElementById('ex-builder').classList.add('hidden');
   document.getElementById('ex-print').classList.remove('hidden');
   window.scrollTo({top:0,behavior:'smooth'});
