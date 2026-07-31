@@ -9,7 +9,7 @@ print a personalized exercise plan with a weekly schedule.
 ## Features
 
 - **Employee Records** — searchable, sortable table; edit / delete; JSON export, import, and
-  copy/paste clipboard sync.
+  copy/paste clipboard sync. Re-importing a record you already hold **updates** it (see Import).
 - **New Assessment** — per-side movement scoring (Forward Lunge, Single Leg Dip, Shoulder Reach,
   Trunk Rotation, Cervical Rotation), pain flags, hypermobility flags, OA flag, and per-movement
   Observations + Quality-Focus inputs.
@@ -30,6 +30,27 @@ print a personalized exercise plan with a weekly schedule.
   design** — there is no cloud backend, so employee health data never leaves the device. JSON
   export/import is the backup and device-to-device transfer mechanism.
 
+## Import (and re-import)
+
+Both import paths — **↑ Import** (file) and **Paste JSON** — accept an array of records. A record whose
+`id` is new is added. A record whose `id` already exists is a **re-score, not a duplicate**, and is
+merged in place:
+
+| Field | On re-import |
+| --- | --- |
+| `scores`, `total`, `hypermobile`, `hasOA` | always refreshed — the assessment owns them |
+| `fname`, `lname`, `name`, `company`, `dept`, `shift`, `location`, `date`, `type` | refreshed only when the incoming value is non-blank |
+| `plan`, `pa`, `followup`, `retest`, `observations`, `qualityFocus` | **never touched** — authored here |
+| `notes` | refreshed only while unedited since the last import |
+
+The distinction matters because an assessment export carries *empty* `observations`, `qualityFocus`,
+`plan`, `pa`, `followup` and `retest` — those are filled in here after import. Replacing a record
+wholesale would erase the exercise program built for that person.
+
+The upstream producer is the **HMA Manual app** (`Dane-Lee/HMA-app`, `HMA-Manual/`), whose Results page
+has **Send Scores to the Tracker**. It reuses the assessment id as the record id, which is what makes
+re-scoring line up.
+
 ## Local development
 
 ```bash
@@ -37,7 +58,11 @@ npm install
 npm run dev      # http://localhost:5173
 npm run build    # outputs to dist/
 npm run preview  # serve the production build locally
+npm test         # import-merge rules (tests/import-merge.test.mjs)
 ```
+
+`npm test` runs the real merge code out of `index.html` and asserts every field the assessment form
+writes is explicitly classified above, so a newly added field cannot silently fall through.
 
 ## Deployment
 
@@ -47,8 +72,9 @@ Deployed on Vercel (framework preset: Vite, auto-detected). Pushing to the GitHu
 ## Project structure
 
 ```
-index.html          # the entire app (markup, styles, logic)
+index.html           # the entire app (markup, styles, logic)
 public/images/       # bundled cartoon exercise images + ATI logo
+tests/               # node-based checks over the logic inside index.html
 package.json         # Vite scripts
 PROGRESS.md          # current status, in-progress work, and backlog
 ```
@@ -68,4 +94,5 @@ between devices.
   `<script>` block in `index.html`. Category exercise lists are composed once in `CAT_EXERCISES`
   (Balance folds into Single Leg Dip; Core folds into Trunk Rotation) — add or edit an exercise
   there and it flows to the builder, library, and print sheet.
-```
+- The import-merge rules live next to `applyImportedRecords` in the same `<script>` block. Adding a
+  field to a record means adding it to one of the field lists there, or `npm test` will fail.
