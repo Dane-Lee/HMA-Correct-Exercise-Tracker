@@ -330,6 +330,7 @@ body.dark #paste-import-panel{background:#1e1e1e;border-color:#444;color:#d8d8d8
     <div class="card-title" style="display:flex;align-items:center">
       <span>HMA Records</span>
       <div style="margin-left:auto;display:flex;gap:8px">
+        <button class="btn btn-sm" id="send-overlay-btn" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.35)" onclick="sendToOverlay(event)" title="Copy all records for the HMA Overlay job-risk tool, then paste them there">→ Send to Overlay</button>
         <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.35)" onclick="exportRecords()" title="Download all records as a JSON file">↓ Export</button>
         <label class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.35);cursor:pointer" title="Load records from a previously exported JSON file">↑ Import<input type="file" id="import-input" accept=".json" style="display:none" onchange="importRecords(event)"></label>
       </div>
@@ -1397,6 +1398,18 @@ function copyRecords(evt){
   const btn=evt.currentTarget;
   const orig=btn.textContent;
   const done=()=>{btn.textContent='✓ Copied!';setTimeout(()=>{btn.textContent=orig;},2000);};
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(json).then(done).catch(()=>{fallbackCopy(json);done();});
+  }else{fallbackCopy(json);done();}
+}
+function sendToOverlay(evt){
+  // Hands the full record set to the HMA Overlay job-risk tool (admin-only).
+  // The two apps are separate origins, so the clipboard is the transport; Overlay
+  // has a matching "Receive records" box. Compact JSON keeps the payload small.
+  if(!records.length){alert('No records to send.');return;}
+  const json=JSON.stringify(records);
+  const btn=evt.currentTarget,orig=btn.textContent;
+  const done=()=>{btn.textContent='✓ Copied — paste into Overlay';setTimeout(()=>{btn.textContent=orig;},3500);};
   if(navigator.clipboard&&navigator.clipboard.writeText){
     navigator.clipboard.writeText(json).then(done).catch(()=>{fallbackCopy(json);done();});
   }else{fallbackCopy(json);done();}
