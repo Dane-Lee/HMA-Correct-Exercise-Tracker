@@ -579,7 +579,9 @@ const EXERCISES={
     {id:'s5',name:'Single Leg Stance',inst:'Stand with a chair in front for balance. Raise one leg and opposite arm. Hold your balance.',sets:'3x30 sec each side'},
     {id:'s6',name:'Fire Hydrants',inst:'On hands and knees. Raise one leg out to the side without straightening your knee. Squeeze glute. Keep 90° bend.',sets:'3x15 each side'},
     {id:'s7',name:'Wide Stance Walking',inst:'Band around ankles. Bend slightly at hips/knees. Step one foot forward past shoulder width against band, feet together.',sets:'3x10 steps'},
-    {id:'s8',name:'Single Leg Balance Clock',inst:'Stand on one leg. Move raised leg forward/back, side/back, rear/neutral. Repeat 3 times each leg.',sets:'3 rounds each side'},
+    /* s8 'Single Leg Balance Clock' retired 2026-08-20 — duplicate of b7 'Single Leg
+       Clock Balance' (same sets, type, target and category; both surfaced in the same
+       sld picker). ID is retired, not reused. */
     {id:'s9',name:'Seated Piriformis Stretch',inst:'Seated, cross one ankle over opposite knee. Press gently on raised knee and lean forward until you feel a glute stretch.',sets:'2x30 sec each side'}
   ]},
   shoulder:{label:'Shoulder Reach',exercises:[
@@ -650,7 +652,7 @@ const CAT_EXERCISES={
 const OA_CAUTION=new Set(['l3','l4','l5','l7','l8','s1','s2','b3','b4','b6','b8','b9','co5','co7']);
 const EX_TYPE={
   l1:'flexibility',l2:'flexibility',l3:'strength',l4:'static stabilization',l5:'dynamic stabilization',l6:'dynamic stabilization',l7:'strength',l8:'dynamic stabilization',l9:'static stabilization',
-  s1:'flexibility',s2:'flexibility',s3:'strength',s4:'dynamic stabilization',s5:'static stabilization',s6:'strength',s7:'dynamic stabilization',s8:'dynamic stabilization',s9:'flexibility',
+  s1:'flexibility',s2:'flexibility',s3:'strength',s4:'dynamic stabilization',s5:'static stabilization',s6:'strength',s7:'dynamic stabilization',s9:'flexibility',
   sh1:'flexibility',sh2:'flexibility',sh3:'strength',sh4:'dynamic stabilization',sh5:'dynamic stabilization',sh6:'mobility',sh7:'strength',sh8:'dynamic stabilization',sh9:'flexibility',
   t1:'flexibility',t2:'mobility',t3:'flexibility',t4:'dynamic stabilization',t5:'dynamic stabilization',t6:'strength',t7:'dynamic stabilization',t8:'dynamic stabilization',
   c1:'flexibility',c2:'flexibility',c3:'flexibility',c4:'mobility',c5:'static stabilization',c6:'mobility',c7:'static stabilization',c8:'static stabilization',c9:'dynamic stabilization',
@@ -659,7 +661,7 @@ const EX_TYPE={
 };
 const EX_DURATION={
   l1:160,l2:140,l3:310,l4:220,l5:330,l6:330,l7:310,l8:330,l9:190,
-  s1:160,s2:160,s3:258,s4:330,s5:310,s6:270,s7:240,s8:220,s9:145,
+  s1:160,s2:160,s3:258,s4:330,s5:310,s6:270,s7:240,s9:145,
   sh1:120,sh2:140,sh3:265,sh4:270,sh5:258,sh6:180,sh7:366,sh8:240,sh9:160,
   t1:160,t2:270,t3:120,t4:258,t5:258,t6:330,t7:366,t8:366,
   c1:140,c2:140,c3:145,c4:120,c5:160,c6:270,c7:190,c8:190,c9:330,
@@ -675,7 +677,7 @@ const FREQ_BY_TYPE={
 };
 const EXERCISE_TARGETS={
   l1:'hip-flexors',l2:'posterior-hip',l3:'quadriceps',l4:'quadriceps',l5:'quadriceps',l6:'core-anterior',l7:'quadriceps',l8:'hip-abductors',l9:'glutes',
-  s1:'calves-ankle',s2:'hip-flexors',s3:'glutes',s4:'glutes',s5:'single-leg-balance',s6:'hip-abductors',s7:'hip-abductors',s8:'single-leg-balance',s9:'posterior-hip',
+  s1:'calves-ankle',s2:'hip-flexors',s3:'glutes',s4:'glutes',s5:'single-leg-balance',s6:'hip-abductors',s7:'hip-abductors',s9:'posterior-hip',
   sh1:'pectorals',sh2:'triceps',sh3:'pectorals',sh4:'rotator-cuff',sh5:'scapular',sh6:'shoulder-mobility',sh7:'posterior-shoulder',sh8:'scapular',sh9:'shoulder-mobility',
   t1:'thoracic-mobility',t2:'thoracic-rotation',t3:'lats',t4:'scapular',t5:'scapular',t6:'core-rotation',t7:'core-rotation',t8:'core-rotation',
   c1:'cervical-lateral',c2:'cervical-lateral',c3:'cervical-rotation',c4:'cervical-retraction',c5:'cervical-retraction',c6:'cervical-rotation',c7:'cervical-rotation',c8:'cervical-lateral',c9:'thoracic-rotation',
@@ -684,7 +686,7 @@ const EXERCISE_TARGETS={
 };
 const EXERCISE_CATEGORY={
   l1:'lunge',l2:'lunge',l3:'lunge',l4:'lunge',l5:'lunge',l6:'lunge',l7:'lunge',l8:'lunge',l9:'lunge',
-  s1:'sld',s2:'sld',s3:'sld',s4:'sld',s5:'sld',s6:'sld',s7:'sld',s8:'sld',s9:'sld',
+  s1:'sld',s2:'sld',s3:'sld',s4:'sld',s5:'sld',s6:'sld',s7:'sld',s9:'sld',
   sh1:'shoulder',sh2:'shoulder',sh3:'shoulder',sh4:'shoulder',sh5:'shoulder',sh6:'shoulder',sh7:'shoulder',sh8:'shoulder',sh9:'shoulder',
   t1:'trunk',t2:'trunk',t3:'trunk',t4:'trunk',t5:'trunk',t6:'trunk',t7:'trunk',t8:'trunk',
   c1:'cervical',c2:'cervical',c3:'cervical',c4:'cervical',c5:'cervical',c6:'cervical',c7:'cervical',c8:'cervical',c9:'cervical',
