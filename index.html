@@ -372,6 +372,7 @@ body.dark #paste-import-panel{background:#1e1e1e;border-color:#444;color:#d8d8d8
   <div class="card">
     <div class="card-title" id="form-title">New Assessment</div>
     <div class="form-row">
+      <div class="form-group"><label>Badge #</label><input type="text" id="f-badge" placeholder="Badge number"></div>
       <div class="form-group"><label>First Name*</label><input type="text" id="f-fname" placeholder="First name"></div>
       <div class="form-group"><label>Last Name*</label><input type="text" id="f-lname" placeholder="Last name"></div>
       <div class="form-group"><label>Date of Assessment*</label><input type="date" id="f-date"></div>
@@ -869,7 +870,8 @@ function calcTotal(snap){let t=0;MOVEMENTS.forEach(m=>{const a=snap[m.key][0].va
 function getFormData(){
   const snap=getScoresSnapshot();
   const fn=document.getElementById('f-fname').value.trim(),ln=document.getElementById('f-lname').value.trim();
-  return{id:editingId||Date.now().toString(),fname:fn,lname:ln,name:(fn+' '+ln).trim(),
+  return{id:editingId||Date.now().toString(),badge:document.getElementById('f-badge').value.trim(),
+    fname:fn,lname:ln,name:(fn+' '+ln).trim(),
     company:document.getElementById('f-company').value.trim(),dept:document.getElementById('f-dept').value.trim(),
     shift:document.getElementById('f-shift').value,date:document.getElementById('f-date').value,
     location:document.getElementById('f-location').value.trim(),type:document.getElementById('f-type').value,
@@ -890,7 +892,7 @@ function saveAndBuildSheet(){const d=getFormData();if(!validateRecord(d))return;
 
 function clearForm(){
   editingId=null;document.getElementById('form-title').textContent='New Assessment';
-  ['f-fname','f-lname','f-dept','f-location','f-notes'].forEach(id=>document.getElementById(id).value='');
+  ['f-badge','f-fname','f-lname','f-dept','f-location','f-notes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-company').value='Hendrickson';document.getElementById('f-shift').value='1st';
   document.getElementById('f-type').value='Initial';document.getElementById('f-followup').value='6';document.getElementById('f-retest').value='4';
   const ps=document.getElementById('f-plan'),pa=document.getElementById('f-pa');
@@ -922,6 +924,7 @@ function clearForm(){
 function editRecord(id){
   const r=records.find(x=>x.id===id);if(!r)return;editingId=id;
   document.getElementById('form-title').textContent='Edit Assessment';
+  document.getElementById('f-badge').value=r.badge||'';
   document.getElementById('f-fname').value=r.fname||r.name.split(' ')[0]||'';
   document.getElementById('f-lname').value=r.lname||r.name.split(' ').slice(1).join(' ')||'';
   document.getElementById('f-company').value=r.company;document.getElementById('f-dept').value=r.dept||'';
@@ -1017,7 +1020,11 @@ function renderTable(){
     const hyperBadge=hyperMvmts.length?`<span class="badge badge-hyper" title="Hypermobility: ${hyperMvmts.join(', ')}">⬡ ${hyperMvmts.length}</span>`:'';
     const oaBadge=r.hasOA?`<span class="badge" style="background:#fff3cd;color:#856404;margin-left:3px">⚠ OA</span>`:'';
     const flagsCell=(hyperBadge||oaBadge)?(hyperBadge+oaBadge):'—';
-    return`<tr><td><strong>${r.name}</strong><br><span style="font-size:15px;color:#777">${r.dept||''}</span></td>
+    // A plan cannot reach Cadence without a badge #, so flag its absence here --
+    // while the gap is still cheap to fix -- rather than at plan issue.
+    const noBadge=`<span class="badge" style="background:#fff3cd;color:#856404;font-size:13px;margin-left:5px" title="No badge number. Required before a plan can be sent to Cadence.">no badge #</span>`;
+    const sub=[r.badge?'#'+r.badge:'',r.dept||''].filter(Boolean).join(' · ');
+    return`<tr><td><strong>${r.name}</strong>${r.badge?'':noBadge}<br><span style="font-size:15px;color:#777">${sub}</span></td>
       <td>${r.date}</td><td style="font-size:18px">${r.shift||'—'} Shift</td>
       <td><span style="font-size:18px;background:${r.type==='Initial'?'#e3e3e3':'#fde8e8'};padding:2px 7px;border-radius:2px;font-weight:700">${r.type}</span></td>
       <td style="font-weight:900;font-size:25px;color:#1a1a1a">${r.total}<span style="font-size:15px;font-weight:400;color:#999">/15</span></td>
@@ -1401,7 +1408,7 @@ function exportRecords(){
 const IMPORT_SCORE_FIELDS=['scores','total','hypermobile','hasOA'];
 // Employee details - refreshed only when the incoming value is non-blank, so an
 // import can never blank out something that was typed in here.
-const IMPORT_DETAIL_FIELDS=['fname','lname','name','company','dept','shift','location','date','type'];
+const IMPORT_DETAIL_FIELDS=['badge','fname','lname','name','company','dept','shift','location','date','type'];
 // Everything else (observations, qualityFocus, plan, pa, followup, retest) is
 // authored in this app after import and is never overwritten.
 

@@ -89,6 +89,14 @@ merged = api.merge(trackerAuthored(), reExport({ dept: "Paint", company: "Hendri
 assert.equal(merged.dept, "Paint");
 assert.equal(merged.company, "Hendrickson");
 
+// 4b. Badge #: an import can fill a blank badge, but a blank import never wipes
+// one already recorded. Same rule as the other detail fields, asserted explicitly
+// because a plan cannot reach Cadence without it.
+merged = api.merge(trackerAuthored({ badge: "4412" }), reExport({ badge: "" }));
+assert.equal(merged.badge, "4412", "a blank incoming badge must not wipe a recorded one");
+merged = api.merge(trackerAuthored({ badge: "" }), reExport({ badge: "4412" }));
+assert.equal(merged.badge, "4412", "an incoming badge must fill a blank one");
+
 // 5. Notes: untouched since import -> refreshed.
 merged = api.merge(trackerAuthored(), reExport({ notes: "lunge: improved" }));
 assert.equal(merged.notes, "lunge: improved", "unedited notes should refresh");
