@@ -332,7 +332,7 @@ body.dark #paste-import-panel{background:#1e1e1e;border-color:#444;color:#d8d8d8
       <div style="margin-left:auto;display:flex;gap:8px">
         <button class="btn btn-sm" id="send-overlay-btn" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.35)" onclick="sendToOverlay(event)" title="Copy all records for the HMA Overlay job-risk tool, then paste them there">→ Send to Overlay</button>
         <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.35)" onclick="exportRecords()" title="Download all records as a JSON file">↓ Export</button>
-        <label class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.35);cursor:pointer" title="Load records from a previously exported JSON file">↑ Import<input type="file" id="import-input" accept=".json" style="display:none" onchange="importRecords(event)"></label>
+        <label class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.35);cursor:pointer" title="Load records from a JSON file. Records you already have are updated with the new scores; your exercise plan work is kept.">↑ Import<input type="file" id="import-input" accept=".json" style="display:none" onchange="importRecords(event)"></label>
       </div>
     </div>
     <div class="search-bar">
@@ -341,7 +341,7 @@ body.dark #paste-import-panel{background:#1e1e1e;border-color:#444;color:#d8d8d8
     </div>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin:-10px 0 14px">
       <button class="btn btn-outline btn-sm" onclick="copyRecords(event)" title="Copy all records as JSON to clipboard" style="font-size:16px;padding:4px 12px;color:#777">Copy JSON</button>
-      <button class="btn btn-outline btn-sm" onclick="togglePastePanel()" title="Import records by pasting JSON text" style="font-size:16px;padding:4px 12px;color:#777">Paste JSON</button>
+      <button class="btn btn-outline btn-sm" onclick="togglePastePanel()" title="Import records by pasting JSON text. Records you already have are updated with the new scores; your exercise plan work is kept." style="font-size:16px;padding:4px 12px;color:#777">Paste JSON</button>
     </div>
     <div id="paste-import-panel" class="hidden" style="background:#f8f8f8;border:1.5px solid #ddd;border-radius:6px;padding:14px;margin-bottom:16px">
       <div style="font-size:18px;font-weight:700;text-transform:uppercase;color:#555;letter-spacing:.5px;margin-bottom:8px;font-family:'Barlow Condensed',sans-serif">Paste JSON to Import</div>
@@ -1393,6 +1393,53 @@ function exportRecords(){
   URL.revokeObjectURL(url);
 }
 
+// ---- Import merge --------------------------------------------------------
+// A record that arrives again with an id we already hold is a re-score, not a
+// duplicate: refresh what the assessment owns and keep the work done in here.
+
+// Owned by the assessment - always refreshed on re-import.
+const IMPORT_SCORE_FIELDS=['scores','total','hypermobile','hasOA'];
+// Employee details - refreshed only when the incoming value is non-blank, so an
+// import can never blank out something that was typed in here.
+const IMPORT_DETAIL_FIELDS=['fname','lname','name','company','dept','shift','location','date','type'];
+// Everything else (observations, qualityFocus, plan, pa, followup, retest) is
+// authored in this app after import and is never overwritten.
+
+// Remember the notes an import delivered, so a later re-import can tell whether
+// they were edited here since.
+function stampImportedNotes(rec){return{...rec,_importedNotes:(rec.notes||'').trim()};}
+
+function mergeImportedRecord(existing,incoming){
+  const merged={...existing};
+  IMPORT_SCORE_FIELDS.forEach(f=>{if(incoming[f]!==undefined&&incoming[f]!==null)merged[f]=incoming[f];});
+  IMPORT_DETAIL_FIELDS.forEach(f=>{const v=(incoming[f]==null?'':String(incoming[f])).trim();if(v)merged[f]=v;});
+  const incomingNotes=(incoming.notes||'').trim();
+  const currentNotes=(existing.notes||'').trim();
+  const notesUntouched=!currentNotes||currentNotes===(existing._importedNotes||'').trim();
+  if(incomingNotes&&notesUntouched){merged.notes=incomingNotes;merged._importedNotes=incomingNotes;}
+  return merged;
+}
+
+function applyImportedRecords(imported){
+  if(!Array.isArray(imported)||!imported.length)return false;
+  const valid=imported.filter(r=>r&&r.id);
+  if(!valid.length)return false;
+  const indexById=new Map(records.map((r,i)=>[r.id,i]));
+  const updates=valid.filter(r=>indexById.has(r.id));
+  const additions=valid.filter(r=>!indexById.has(r.id));
+  const parts=[];
+  if(additions.length)parts.push(`add ${additions.length} new record(s)`);
+  if(updates.length)parts.push(`update ${updates.length} existing record(s)`);
+  const detail=updates.length?'\n\nUpdates refresh scores, pain, hypermobility, OA and employee details.\nYour exercise plan, observations, quality focus, follow-up and re-test dates are kept.':'';
+  if(!confirm(`This import will ${parts.join(' and ')}.${detail}\n\nContinue?`))return false;
+  updates.forEach(r=>{const i=indexById.get(r.id);records[i]=mergeImportedRecord(records[i],r);});
+  records=[...additions.map(stampImportedNotes),...records];
+  saveRecords();
+  renderTable();
+  alert(`${additions.length} record(s) added, ${updates.length} record(s) updated.`);
+  return true;
+}
+
 function importRecords(event){
   const file=event.target.files[0];
   if(!file)return;
@@ -1400,17 +1447,8 @@ function importRecords(event){
   reader.onload=function(e){
     try{
       const imported=JSON.parse(e.target.result);
-      if(!Array.isArray(imported)||!imported.length){alert('No valid records found in this file.');event.target.value='';return;}
-      const existingIds=new Set(records.map(r=>r.id));
-      const newRecs=imported.filter(r=>r.id&&!existingIds.has(r.id));
-      const dupes=imported.length-newRecs.length;
-      if(!newRecs.length){alert(`All ${imported.length} record(s) in this file already exist locally. Nothing imported.`);event.target.value='';return;}
-      const msg=`Import ${newRecs.length} record(s)?${dupes?`\n(${dupes} duplicate(s) skipped)`:''}\n\nThey will be added to your existing records.`;
-      if(!confirm(msg)){event.target.value='';return;}
-      records=[...newRecs,...records];
-      saveRecords();
-      renderTable();
-      alert(`${newRecs.length} record(s) imported successfully.`);
+      if(!Array.isArray(imported)||!imported.filter(r=>r&&r.id).length){alert('No valid records found in this file.');event.target.value='';return;}
+      applyImportedRecords(imported);
     }catch(err){
       alert('Could not read file. Make sure it is a valid HMA export (.json) file.');
     }
@@ -1461,17 +1499,9 @@ function importFromText(){
   if(!text){alert('Please paste JSON text first.');return;}
   try{
     const imported=JSON.parse(text);
-    if(!Array.isArray(imported)||!imported.length){alert('No valid records found in pasted text.');return;}
-    const existingIds=new Set(records.map(r=>r.id));
-    const newRecs=imported.filter(r=>r.id&&!existingIds.has(r.id));
-    const dupes=imported.length-newRecs.length;
-    if(!newRecs.length){alert(`All ${imported.length} record(s) already exist locally. Nothing imported.`);return;}
-    const msg=`Import ${newRecs.length} record(s)?${dupes?`\n(${dupes} duplicate(s) skipped)`:''}\n\nThey will be added to your existing records.`;
-    if(!confirm(msg))return;
-    records=[...newRecs,...records];
-    saveRecords();renderTable();
+    if(!Array.isArray(imported)||!imported.filter(r=>r&&r.id).length){alert('No valid records found in pasted text.');return;}
+    if(!applyImportedRecords(imported))return;
     document.getElementById('paste-import-panel').classList.add('hidden');
-    alert(`${newRecs.length} record(s) imported successfully.`);
   }catch(err){
     alert('Could not parse text. Make sure you pasted valid HMA exported JSON.');
   }
