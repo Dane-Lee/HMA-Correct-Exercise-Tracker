@@ -42,6 +42,12 @@ function trackerAuthored(over = {}) {
     _importedNotes: "lunge: knee valgus",
     // the work done inside the Tracker
     plan: "Yes", pa: "Yes", followup: "6", retest: "4",
+    program: {
+      plan_id: "11111111-1111-4111-8111-111111111111",
+      finalized_at: "2026-07-24T10:00:00.000Z",
+      work_days: [1, 2, 3, 4, 5], session_budget_sec: 1200,
+      exercises: [{ id: "l1", prescription: "2x30 sec hold each side", days: [1, 2, 3, 4, 5], sort_order: 0 }]
+    },
     observations: { lunge: { 0: "Knee collapse" } },
     qualityFocus: { lunge: ["Control"] },
     ...over
@@ -77,6 +83,12 @@ assert.equal(merged.followup, "6");
 assert.equal(merged.retest, "4");
 assert.deepEqual(merged.observations, { lunge: { 0: "Knee collapse" } }, "observations must survive");
 assert.deepEqual(merged.qualityFocus, { lunge: ["Control"] }, "quality focus must survive");
+// The finalized program is the whole point of the merge: a Manual re-export carries
+// no program at all, so a blind overwrite would erase the employee's exercises.
+assert.equal(merged.program.plan_id, "11111111-1111-4111-8111-111111111111", "plan_id must be stable");
+assert.deepEqual(merged.program.exercises, [
+  { id: "l1", prescription: "2x30 sec hold each side", days: [1, 2, 3, 4, 5], sort_order: 0 }
+], "the finalized program must survive a re-import untouched");
 
 // 3. Blank incoming detail fields never wipe what was typed in the Tracker.
 assert.equal(merged.dept, "Weld");
@@ -140,7 +152,7 @@ const classified = new Set([
   ...source.match(/IMPORT_SCORE_FIELDS=\[([^\]]*)\]/)[1].replace(/'/g, "").split(","),
   ...source.match(/IMPORT_DETAIL_FIELDS=\[([^\]]*)\]/)[1].replace(/'/g, "").split(","),
   // deliberately preserved: authored in the Tracker after import
-  "plan", "pa", "followup", "retest", "observations", "qualityFocus"
+  "plan", "pa", "followup", "retest", "observations", "qualityFocus", "program"
 ]);
 const unclassified = formFields.filter((f) => !classified.has(f));
 assert.deepEqual(
