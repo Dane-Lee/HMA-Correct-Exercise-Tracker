@@ -1,6 +1,6 @@
 # HMA Corrective Exercise Tracker — Project Progress
 
-_Last updated: 2026-07-31_
+_Last updated: 2026-08-23_
 
 ## What This Is
 A single-file web app (Vite-served `index.html`) built for ATI Worksite Solutions at
@@ -45,10 +45,33 @@ No cloud backend.
 - [x] Re-import updates an existing record instead of skipping it, without destroying plan work
       (branch `tracker-merge-on-reimport`) — see Session 2026-07-31
 
+### Pipeline work — built, on branch `phase1-badge-number`, NOT merged
+See `../HMA-AI/PIPELINE-WORKFLOW-PLAN.md`. **Merging this branch deploys to Vercel.**
+Verify first: `../HMA-AI/VERIFICATION-CHECKLIST.md`, sections B and C.
+
+- [x] **Badge #** on the form, in `getFormData()` and `IMPORT_DETAIL_FIELDS` — an import can fill a
+      blank badge but never wipes a recorded one. The record list shows `#badge · dept` and flags a
+      missing badge inline, so the gap surfaces before a program is built rather than at plan issue.
+- [x] **The finalized program persists** under `program` (never `plan`, which is already a
+      "Yes"/"No" string). Written on preview; reopening the builder restores it verbatim instead of
+      re-deriving suggestions; "Start Over" discards it behind a confirm.
+- [x] **The printed sheet reads the stored days** rather than recomputing. `_computeSchedule`
+      rebalances, so a recompute could print a different week than the one saved — and later a
+      different week than the QR carries. Rescheduled only when the selection itself changes.
+- [x] **Fixed a data-loss bug this would have inherited:** `saveRecord()` replaced the whole record
+      with `getFormData()`, which knows only the form's own fields. Editing an assessment silently
+      dropped the `_importedNotes` stamp — breaking the merge's edited-notes detection — and would
+      have dropped `program` too. It merges onto the record now.
+- [x] **Cadence plan payload** — `buildPlanPayload()` emits contract v1 from a persisted program;
+      a "→ Cadence" button copies it for pasting into Cadence-Admin. Deliberately **no crypto and
+      no QR encoder here** (E13): Cadence already has the envelope code and vectors, so this app
+      stays dependency-free. Four gates refuse to build — no program, no badge, `plan` is "No"
+      (pain flagged: referred, not programmed), or an exercise has left the library.
+      `tests/cadence-payload.test.mjs` restates Cadence's validator rules and is negative-controlled.
+
 ### In Progress
-- [ ] **Verify the re-import merge end-to-end with the Manual app** — score → export → import →
-      build a plan → change a score → export → import again. Confirm scores change and the plan
-      survives. Nothing has been clicked through yet; merge `tracker-merge-on-reimport` only after.
+- [x] ~~Verify the re-import merge end-to-end~~ — verified by the owner; `tracker-merge-on-reimport`
+      merged to `main` (`b822a54`) and deployed. `mergeImportedRecord` is live.
 - [ ] **Remaining exercise images** — 24 of 60 exercises still have no image
   (Trunk t1–t6; Balance b2/b3/b4/b6/b7; l2/l4/l7; s5/s8; sh1/sh3/sh6/sh8; c3/c9; co3/co5).
   App shows a graceful "No image" placeholder until added.
