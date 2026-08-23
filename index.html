@@ -1048,12 +1048,100 @@ function renderTable(){
       <td style="white-space:nowrap">
         <button class="btn btn-outline btn-sm" onclick="editRecord('${r.id}')" style="margin-right:3px">Edit</button>
         <button class="btn btn-red btn-sm" onclick="openExerciseBuilderById('${r.id}')" style="margin-right:3px">Exercises</button>
+        ${r.program?`<button class="btn btn-outline btn-sm" onclick="exportPlanForCadence('${r.id}',event)" style="margin-right:3px" title="Copy this plan for Cadence-Admin">→ Cadence</button>`:''}
         <button class="btn btn-outline btn-sm" onclick="deleteRecord('${r.id}')" style="color:#b71c1c">Del</button>
       </td></tr>`;
   }).join('');
 }
 
 function getFuDate(d,w){const dt=new Date(d);dt.setDate(dt.getDate()+w*7);return dt.toLocaleDateString();}
+
+// ---- Cadence plan payload (contract v1) ------------------------------------
+// Built here and pasted into Cadence-Admin, which holds the employee's key,
+// encrypts it into QR envelope v1 and prints the companion page. This app stays
+// dependency-free: no crypto, no QR encoder.
+// Spec: HMA-Cadence/docs/plan-payload-contract.md
+const CADENCE_MOVEMENT={lunge:'lunge',sld:'single_leg_dip',shoulder:'shoulder_reach',trunk:'trunk_rotation',cervical:'cervical_rotation'};
+const PAYLOAD_SCHEMA_VERSION=1;
+const TRACKER_SOURCE_VERSION='1.1.0';
+
+// Cadence wants concrete dates; the Tracker stores follow-up and re-test as weeks.
+function _isoPlusWeeks(dateStr,weeks){
+  const w=parseInt(weeks,10);
+  if(!dateStr||isNaN(w))return null;
+  const dt=new Date(dateStr+'T00:00:00');
+  dt.setDate(dt.getDate()+w*7);
+  return dt.toISOString().split('T')[0];
+}
+
+// Filename only. Bundled art lives at /images/<file>; a provider-uploaded data URL
+// has no filename to send, and binaries do not travel in the payload either way.
+function _imageRef(id){
+  const src=IMAGE_REGISTRY[id];
+  if(!src||src.startsWith('data:'))return null;
+  return decodeURIComponent(src.split('/').pop());
+}
+
+function buildPlanPayload(rec){
+  const prog=rec&&rec.program;
+  if(!prog||!Array.isArray(prog.exercises)||!prog.exercises.length)throw new Error('This employee has no finalized exercise program yet. Preview a print sheet first.');
+  if(!(rec.badge||'').trim())throw new Error('A badge number is required before a plan can go to Cadence. Add one on the assessment.');
+  if(rec.plan==='No')throw new Error('This assessment has no exercise plan (pain flagged, or plan set to No). Cadence receives programs only.');
+
+  const byId=new Map(getAllExercises().map(e=>[e.id,e]));
+  const exercises=prog.exercises.slice().sort((a,b)=>a.sort_order-b.sort_order).map(pe=>{
+    const ex=byId.get(pe.id);
+    if(!ex)throw new Error('Exercise "'+pe.id+'" is no longer in the library. Rebuild this program before sending it.');
+    const dflt=ex.sets;
+    return{
+      source_exercise_id:pe.id,
+      name:ex.name,
+      instructions:ex.inst,
+      movement_category:CADENCE_MOVEMENT[EXERCISE_CATEGORY[pe.id]],
+      exercise_type:(EX_TYPE[pe.id]||'').replace(/\s+/g,'_'),
+      default_prescription:dflt,
+      prescription_override:pe.prescription&&pe.prescription!==dflt?pe.prescription:null,
+      duration_sec:EX_DURATION[pe.id]||0,
+      days:(pe.days||[]).slice(),
+      sort_order:pe.sort_order,
+      image_ref:_imageRef(pe.id)
+    };
+  });
+
+  return{
+    schema_version:PAYLOAD_SCHEMA_VERSION,
+    plan_id:prog.plan_id,
+    generated_at:new Date().toISOString(),
+    source:{app:'hma-tracker',version:TRACKER_SOURCE_VERSION},
+    employee:{
+      employee_number:(rec.badge||'').trim(),
+      first_name:rec.fname||'',last_name:rec.lname||'',name:rec.name||'',
+      company:rec.company||'',department:rec.dept||'',shift:rec.shift||'',location:rec.location||''
+    },
+    assessment:{
+      assessment_date:rec.date||'',
+      assessment_type:rec.type||'Initial',
+      total_score:typeof rec.total==='number'?rec.total:null,
+      follow_up_date:_isoPlusWeeks(rec.date,rec.followup),
+      reassessment_date:_isoPlusWeeks(rec.date,rec.retest),
+      notes:rec.notes||''
+    },
+    schedule:{work_days:(prog.work_days||SCHED_WORK_DAYS).slice(),session_budget_sec:prog.session_budget_sec||SESSION_BUDGET_SEC},
+    exercises
+  };
+}
+
+function exportPlanForCadence(id,evt){
+  const rec=records.find(r=>r.id===id);
+  if(!rec)return;
+  let json;
+  try{json=JSON.stringify(buildPlanPayload(rec),null,2);}
+  catch(e){alert(e.message);return;}
+  const btn=evt&&evt.currentTarget;
+  const done=()=>{if(!btn)return;const o=btn.textContent;btn.textContent='✓ Copied';setTimeout(()=>{btn.textContent=o;},2000);};
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(json).then(done).catch(()=>{fallbackCopy(json);done();});}
+  else{fallbackCopy(json);done();}
+}
 function openExerciseBuilderById(id){const r=records.find(x=>x.id===id);if(r)openExerciseBuilder(r);}
 
 function openExerciseBuilder(rec){
