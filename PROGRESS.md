@@ -45,9 +45,9 @@ No cloud backend.
 - [x] Re-import updates an existing record instead of skipping it, without destroying plan work
       (branch `tracker-merge-on-reimport`) — see Session 2026-07-31
 
-### Pipeline work — built, on branch `phase1-badge-number`, NOT merged
-See `../HMA-AI/PIPELINE-WORKFLOW-PLAN.md`. **Merging this branch deploys to Vercel.**
-Verify first: `../HMA-AI/VERIFICATION-CHECKLIST.md`, sections B and C.
+### Pipeline work — MERGED AND LIVE (2026-08-26, `6d28dfe`)
+Verified end to end by the owner before merging; all 23 checks in
+`../HMA-AI/VERIFICATION-CHECKLIST.md` pass. See `../HMA-AI/PIPELINE-WORKFLOW-PLAN.md`.
 
 - [x] **Badge #** on the form, in `getFormData()` and `IMPORT_DETAIL_FIELDS` — an import can fill a
       blank badge but never wipes a recorded one. The record list shows `#badge · dept` and flags a
@@ -122,7 +122,7 @@ Verify first: `../HMA-AI/VERIFICATION-CHECKLIST.md`, sections B and C.
 
 ### Session — 2026-07-31
 - **Re-import now updates instead of skipping** (commit `a2f3fcf`, branch `tracker-merge-on-reimport`,
-  pushed but **not merged to `main`** — pending the end-to-end check above).
+  merged to `main` 2026-08-26 and live — the end-to-end check above).
   - The problem: both import paths filtered out any record whose `id` already existed, so a score
     corrected in the HMA Manual app and exported again was silently dropped.
   - Why not a blind overwrite: an assessment export carries **empty** `observations`, `qualityFocus`,
