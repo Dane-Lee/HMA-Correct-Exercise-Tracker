@@ -1086,7 +1086,12 @@ function buildPlanPayload(rec){
   const prog=rec&&rec.program;
   if(!prog||!Array.isArray(prog.exercises)||!prog.exercises.length)throw new Error('This employee has no finalized exercise program yet. Preview a print sheet first.');
   if(!(rec.badge||'').trim())throw new Error('A badge number is required before a plan can go to Cadence. Add one on the assessment.');
-  if(rec.plan==='No')throw new Error('This assessment has no exercise plan (pain flagged, or plan set to No). Cadence receives programs only.');
+  // Gate on PAIN, not on the `plan` dropdown. updateTotals() auto-sets plan to
+  // "No" whenever the total reaches the low-risk band (11+), so gating on it would
+  // block every good scorer the EIS chose to program anyway. Pain is the actual
+  // clinical rule: that person is referred, not programmed.
+  const painSides=MOVEMENTS.filter(m=>{const sc=rec.scores&&rec.scores[m.key];return sc&&(sc[0]?.pain||sc[1]?.pain);}).map(m=>m.label);
+  if(painSides.length)throw new Error('Pain was flagged on: '+painSides.join(', ')+'. That is a referral, not a corrective program — Cadence receives programs only.');
 
   const byId=new Map(getAllExercises().map(e=>[e.id,e]));
   const exercises=prog.exercises.slice().sort((a,b)=>a.sort_order-b.sort_order).map(pe=>{
