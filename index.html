@@ -1062,7 +1062,7 @@ function renderTable(){
         <button class="btn btn-outline btn-sm" onclick="editRecord('${r.id}')" style="margin-right:3px">Edit</button>
         <button class="btn btn-red btn-sm" onclick="openExerciseBuilderById('${r.id}')" style="margin-right:3px">Exercises</button>
         <button class="btn btn-outline btn-sm" onclick="deleteRecord('${r.id}')" style="color:#b71c1c">Del</button>
-        ${r.program?`<span class="row-handoff"><button class="btn btn-sm btn-handoff" onclick="exportPlanForCadence('${r.id}',event)" title="Copy this employee's finished plan for Cadence-Admin, which encrypts it into their QR code">→ Cadence</button></span>`:''}
+        <span class="row-handoff"><button class="btn btn-sm btn-handoff" onclick="sendRecordToOverlay('${r.id}',event)" title="Copy just this employee's record for the HMA Overlay job-match tool. Use the header button only when you want the whole roster.">→ Overlay</button>${r.program?`<button class="btn btn-sm btn-handoff" onclick="exportPlanForCadence('${r.id}',event)" title="Copy this employee's finished plan for Cadence-Admin, which encrypts it into their QR code">→ Cadence</button>`:''}</span>
       </td></tr>`;
   }).join('');
 }
@@ -1671,14 +1671,34 @@ function copyRecords(evt){
     navigator.clipboard.writeText(json).then(done).catch(()=>{fallbackCopy(json);done();});
   }else{fallbackCopy(json);done();}
 }
+// ---- Overlay hand-off ------------------------------------------------------
+// Two deliberately different sends. The header button syncs the whole roster;
+// this one sends the person in front of you, matching "-> Cadence" on the same
+// row. Copying every employee's scores to analyse one of them puts the whole
+// population on the clipboard, which is the wrong default for an admin tool
+// that is careful about ADA sensitivity -- and the clipboard outlives the tab.
+//
+// Overlay must receive an ARRAY. Its looksLikeHma() gate is
+// `Array.isArray(arr) && arr.length && arr[0].scores && ...` -- length was never
+// part of it, so a one-element array ingests exactly like the bulk send and
+// dedups on `id`. A bare object fails the gate and then throws
+// "arr is not iterable", so never unwrap this. (Confirmed against Overlay's own
+// functions, 2026-08-26.)
+function sendRecordToOverlay(id,evt){
+  const rec=records.find(r=>String(r.id)===String(id));
+  if(!rec){alert('That record no longer exists.');return;}
+  copyForOverlay(JSON.stringify([rec]),evt,'✓ Copied — paste into Overlay');
+}
 function sendToOverlay(evt){
   // Hands the full record set to the HMA Overlay job-risk tool (admin-only).
   // The two apps are separate origins, so the clipboard is the transport; Overlay
   // has a matching "Receive records" box. Compact JSON keeps the payload small.
   if(!records.length){alert('No records to send.');return;}
-  const json=JSON.stringify(records);
+  copyForOverlay(JSON.stringify(records),evt,'✓ Copied — paste into Overlay');
+}
+function copyForOverlay(json,evt,msg){
   const btn=evt.currentTarget,orig=btn.textContent;
-  const done=()=>{btn.textContent='✓ Copied — paste into Overlay';setTimeout(()=>{btn.textContent=orig;},3500);};
+  const done=()=>{btn.textContent=msg;setTimeout(()=>{btn.textContent=orig;},3500);};
   if(navigator.clipboard&&navigator.clipboard.writeText){
     navigator.clipboard.writeText(json).then(done).catch(()=>{fallbackCopy(json);done();});
   }else{fallbackCopy(json);done();}
