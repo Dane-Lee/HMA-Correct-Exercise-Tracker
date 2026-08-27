@@ -112,10 +112,17 @@ body{font-family:'Barlow',Arial,sans-serif;font-size:22px;background:#1a1a1a;col
    so they get one shared look and sit apart from the actions around them. */
 .btn-handoff{background:#eef3fb;color:#1c4b8f;border:1px solid #b8cce8;font-weight:700}
 .btn-handoff:hover{background:#dde8f7}
+/* A record with no finalized program cannot go to Cadence. Shown disabled
+   rather than hidden: an absent button reads as "broken" exactly as often as
+   "not ready yet", and the tooltip says which. */
+.btn-handoff[disabled]{background:#f4f4f4;color:#9a9a9a;border-color:#dcdcdc;font-weight:600;cursor:not-allowed}
+.btn-handoff[disabled]:hover{background:#f4f4f4}
 .handoff-group{display:flex;align-items:center;gap:6px;padding-left:12px;margin-left:6px;border-left:2px solid rgba(255,255,255,.28)}
 .handoff-label{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:rgba(255,255,255,.6);white-space:nowrap}
 .row-handoff{display:inline-flex;align-items:center;gap:3px;padding-left:9px;margin-left:6px;border-left:2px solid #e0e0e0}
 body.dark .btn-handoff{background:#16273d;color:#8fb6e8;border-color:#2c4a70}
+body.dark .btn-handoff[disabled]{background:#232323;color:#6d6d6d;border-color:#3a3a3a}
+body.dark .btn-handoff[disabled]:hover{background:#232323}
 body.dark .row-handoff{border-left-color:#3a3a3a}
 .sets-reps-edit{display:none;width:100%;align-items:center;gap:8px;padding:6px 0 2px 27px;border-top:1px dashed #f0c0c0;margin-top:4px}
 .ex-item.selected .sets-reps-edit{display:flex}
@@ -1062,7 +1069,9 @@ function renderTable(){
         <button class="btn btn-outline btn-sm" onclick="editRecord('${r.id}')" style="margin-right:3px">Edit</button>
         <button class="btn btn-red btn-sm" onclick="openExerciseBuilderById('${r.id}')" style="margin-right:3px">Exercises</button>
         <button class="btn btn-outline btn-sm" onclick="deleteRecord('${r.id}')" style="color:#b71c1c">Del</button>
-        <span class="row-handoff"><button class="btn btn-sm btn-handoff" onclick="sendRecordToOverlay('${r.id}',event)" title="Copy just this employee's record for the HMA Overlay job-match tool. Use the header button only when you want the whole roster.">→ Overlay</button>${r.program?`<button class="btn btn-sm btn-handoff" onclick="exportPlanForCadence('${r.id}',event)" title="Copy this employee's finished plan for Cadence-Admin, which encrypts it into their QR code">→ Cadence</button>`:''}</span>
+        <span class="row-handoff"><button class="btn btn-sm btn-handoff" onclick="sendRecordToOverlay('${r.id}',event)" title="Copy just this employee's record for the HMA Overlay job-match tool. Use the header button only when you want the whole roster.">→ Overlay</button>${r.program
+          ?`<button class="btn btn-sm btn-handoff" onclick="exportPlanForCadence('${r.id}',event)" title="Copy this employee's finished plan for Cadence-Admin, which encrypts it into their QR code">→ Cadence</button>`
+          :`<button class="btn btn-sm btn-handoff" disabled title="No exercise program saved yet. Open Exercises for this employee and click Preview Print Sheet — that is what saves the program Cadence needs.">→ Cadence</button>`}</span>
       </td></tr>`;
   }).join('');
 }
