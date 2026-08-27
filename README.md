@@ -10,7 +10,7 @@ print a personalized exercise plan with a weekly schedule.
 
 - **Employee Records** — searchable, sortable table; edit / delete; JSON export, import, and
   copy/paste clipboard sync. Re-importing a record you already hold **updates** it (see Import).
-- **New Assessment** — per-side movement scoring (Forward Lunge, Single Leg Dip, Shoulder Reach,
+- **New Assessment** — per-side movement scoring (Lunge, Single Leg Dip, Shoulder Reach,
   Trunk Rotation, Cervical Rotation), pain flags, hypermobility flags, OA flag, and per-movement
   Observations + Quality-Focus inputs.
 - **Exercise Sheet Builder** — auto-selects exercises from the assessment (mobility focus for low

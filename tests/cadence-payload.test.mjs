@@ -30,7 +30,7 @@ const prelude = ["IMAGE_REGISTRY", "EXERCISE_CATEGORY", "EX_TYPE", "EX_DURATION"
   }).join("\n");
 
 const TRACKER_MOVEMENTS = [
-  { key: "lunge", label: "Forward Lunge" }, { key: "sld", label: "Single Leg Dip" },
+  { key: "lunge", label: "Lunge" }, { key: "sld", label: "Single Leg Dip" },
   { key: "shoulder", label: "Shoulder Reach" }, { key: "trunk", label: "Trunk Rotation" },
   { key: "cervical", label: "Cervical Rotation" }
 ];

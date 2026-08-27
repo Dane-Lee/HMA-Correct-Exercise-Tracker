@@ -511,7 +511,7 @@ window.storage = {
 
 <script>
 const MOVEMENTS=[
-  {key:'lunge',label:'Forward Lunge',sides:['Right Leg','Left Leg']},
+  {key:'lunge',label:'Lunge',sides:['Right Leg','Left Leg']},
   {key:'sld',label:'Single Leg Dip',sides:['Right Leg','Left Leg']},
   {key:'shoulder',label:'Shoulder Reach',sides:['Right Arm','Left Arm']},
   {key:'trunk',label:'Trunk Rotation',sides:['Right Side','Left Side']},
@@ -607,7 +607,7 @@ const DEFAULT_IMAGES={
 };
 
 const EXERCISES={
-  lunge:{label:'Forward Lunges',exercises:[
+  lunge:{label:'Lunges',exercises:[
     {id:'l1',name:'Hip Flexor Stretch',inst:'Lie on a table at 45° with one leg hanging off. Let your leg hang to feel a stretch in the front of your hip.',sets:'2x30 sec hold each side'},
     {id:'l2',name:'Pigeon Stretch',inst:'Stand facing a table, raise leg and place lower leg on the edge. Slowly lean forward until you feel a stretch in your hip.',sets:'2x30 sec hold each side'},
     {id:'l3',name:'Reverse Lunge',inst:'Stand with hands behind your head, step one foot back and bend both knees to ~90°. Drive through front foot to stand.',sets:'3x10 each side'},
@@ -985,7 +985,7 @@ function deleteRecord(id){if(!confirm('Delete this record?'))return;records=reco
 function exName(id){
   return Object.values(CAT_EXERCISES).flat().find(e=>e.id===id)?.name||id;
 }
-function catLabel(key){return{lunge:'Forward Lunge',sld:'Single Leg Dip',shoulder:'Shoulder Reach',trunk:'Trunk Rotation',cervical:'Cervical'}[key]||key;}
+function catLabel(key){return{lunge:'Lunge',sld:'Single Leg Dip',shoulder:'Shoulder Reach',trunk:'Trunk Rotation',cervical:'Cervical'}[key]||key;}
 function formatTarget(t){return t.replace(/-/g,' ');}
 
 function deduplicateExercises(rec){
@@ -1547,7 +1547,7 @@ function _renderPrintSheet(chosen,sched){
     </div>
     ${hyperNote}${oaNote}
     ${(()=>{
-      const PLABELS={lunge:'Forward Lunge',sld:'Single Leg Dip',shoulder:'Shoulder Reach',trunk:'Trunk Rotation',cervical:'Cervical'};
+      const PLABELS={lunge:'Lunge',sld:'Single Leg Dip',shoulder:'Shoulder Reach',trunk:'Trunk Rotation',cervical:'Cervical'};
       const PCATS=['lunge','sld','shoulder','trunk','cervical'].map(key=>({key,label:PLABELS[key],ids:new Set(CAT_EXERCISES[key].map(e=>e.id))}));
       return PCATS.map(cat=>{
         const catEx=chosen.filter(e=>cat.ids.has(e.id));
@@ -1751,7 +1751,7 @@ function libCard(ex){
 }
 
 function buildLibrary(){
-  const LIB_LABELS={lunge:'Forward Lunges',sld:'Single Leg Dip + Balance',shoulder:'Shoulder Reach',trunk:'Trunk Rotation + Core',cervical:'Cervical'};
+  const LIB_LABELS={lunge:'Lunges',sld:'Single Leg Dip + Balance',shoulder:'Shoulder Reach',trunk:'Trunk Rotation + Core',cervical:'Cervical'};
   const allCats=['lunge','sld','shoulder','trunk','cervical'].map(key=>({key,label:LIB_LABELS[key],exercises:CAT_EXERCISES[key]}));
   document.getElementById('lib-categories').innerHTML=allCats.map(cat=>`
     <div class="lib-section" id="libsec-${cat.key}">

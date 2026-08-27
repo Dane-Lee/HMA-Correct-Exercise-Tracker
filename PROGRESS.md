@@ -7,7 +7,7 @@ A single-file web app (Vite-served `index.html`) built for ATI Worksite Solution
 Hendrickson. It runs the Human Movement Assessment (HMA) workflow end to end:
 
 - **Employee Records** — searchable, sortable table; edit / delete; JSON export / import / clipboard sync
-- **New Assessment** — movement scoring for 5 movements (Forward Lunge, Single Leg Dip, Shoulder
+- **New Assessment** — movement scoring for 5 movements (Lunge, Single Leg Dip, Shoulder
   Reach, Trunk Rotation, Cervical Rotation), per-side scoring, pain flags, hypermobility flagging,
   OA flag, per-movement Observations and Quality-Focus inputs
 - **Exercise Sheet Builder** — auto-suggests exercises from scores (mobility for low scorers,
