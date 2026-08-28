@@ -540,6 +540,80 @@ const MOBILITY_SUGGEST={
   cervical:['c1','c2','c3']
 };
 
+/* ── Severity- and asymmetry-aware suggestion ──────────────────────────────
+   Replaces "any imperfect score gets the whole category list". See
+   EXERCISE-SELECTION-LOGIC.md for the evidence; the short version:
+
+   The HMA score is fault-COUNT based (3 = clean, 2 = 1-2 faults with full ROM,
+   1 = 3+ faults or restricted ROM, 0 = pain). So the score says how much is
+   wrong, and that should change WHAT KIND of work is indicated, not merely
+   whether to act:
+
+     1 -> restricted. Restore motion first; do not load a dysfunctional pattern.
+     2 -> full range, poor control. Stabilize and strengthen.
+
+   Previously a 1 and a 2 produced byte-identical output, so the plan was a pure
+   function of five booleans -- at most 32 possible plans, and 55% of score
+   sheets produced the same 19 exercises.
+
+   The two curated tables already encode this split: MOBILITY_SUGGEST is almost
+   entirely flexibility/mobility, HYPER_SUGGEST entirely stabilization/strength.
+   They are used here as clinician-chosen PRIORITY within a type-derived pool,
+   rather than as the answer itself. */
+const RESTORE_TYPES=['flexibility','mobility'];
+const BUILD_TYPES=['static stabilization','dynamic stabilization','strength'];
+const PER_MOVEMENT_DEFAULT=2;
+
+/* Exercises in a category whose type suits the indicated phase, ordered so the
+   clinician-curated picks come first. */
+function poolFor(movementKey,types,curated){
+  const inCat=(CAT_EXERCISES[movementKey]||[]).map(e=>e.id);
+  const rank=id=>{const i=(curated||[]).indexOf(id);return i<0?999:i;};
+  return inCat
+    .filter(id=>types.includes(EX_TYPE[id]))
+    .sort((a,b)=>rank(a)-rank(b));
+}
+
+/* One movement in, the exercises it should contribute out — plus why, so the
+   EIS can see the reasoning rather than a bare list.
+   left/right are the raw per-side scores; pain is handled by the caller. */
+function suggestForMovement(movementKey,left,right,isHyper,limit){
+  const n=limit??PER_MOVEMENT_DEFAULT;
+  const L=left??3, R=right??3;
+  const worst=Math.min(L,R);
+  const asymmetry=Math.abs(L-R);
+
+  if(worst>=3&&!isHyper)return{ids:[],phase:'none',asymmetry,reason:'Clean on both sides.'};
+
+  let phase,pool;
+  if(isHyper){
+    // Hypermobility: stretching is contraindicated regardless of score, so this
+    // outranks the severity rule. Pre-existing behaviour, kept deliberately.
+    phase='stabilize';
+    pool=poolFor(movementKey,BUILD_TYPES,HYPER_SUGGEST[movementKey]);
+  }else if(worst<=1){
+    phase='restore';
+    pool=poolFor(movementKey,RESTORE_TYPES,MOBILITY_SUGGEST[movementKey]);
+  }else{
+    phase='build';
+    pool=poolFor(movementKey,BUILD_TYPES,HYPER_SUGGEST[movementKey]);
+  }
+
+  // Asymmetry is an independent finding, not a rounding error: in an industrial
+  // population each 1% of bilateral asymmetry raised low-back injury risk 18.5%.
+  // Math.min() alone discards it, so widen the selection when the sides differ.
+  const ids=pool.slice(0,asymmetry>=1?n+1:n);
+
+  const worseSide=L===R?null:(L<R?0:1);
+  const reason=isHyper
+    ?'Hypermobile — stabilization rather than stretching.'
+    :worst<=1
+      ?'Restricted (3+ faults or reduced range) — restore motion before loading.'
+      :'Full range with compensation — stabilize and strengthen.';
+
+  return{ids,phase,asymmetry,worseSide,reason};
+}
+
 let IMAGE_REGISTRY={};
 
 // Default images bundled with the app (from /images/)
@@ -809,6 +883,9 @@ function faultLabel(key,id){
 const QUALITY_TYPES=['flexibility','mobility','static stabilization','dynamic stabilization','strength'];
 const QUALITY_LABELS={'flexibility':'Flexibility','mobility':'Mobility','static stabilization':'Static Stabilization','dynamic stabilization':'Dynamic Stabilization','strength':'Strength'};
 let records=[], editingId=null, restoredProgram=false, selectedExercises={}, customSetsReps={}, suggestedKeys={}, hyperSuggestedKeys={}, currentEmpForSheet=null, oaActive=false, libraryBuilt=false, _pendingSheet=null;
+// Why each movement was suggested what it was — surfaced to the EIS so the
+// suggestion is reviewable rather than opaque. Keyed by movement.
+let suggestionNotes={};
 let observations={lunge:{},sld:{},shoulder:{},trunk:{},cervical:{}};
 let qualityFocus={lunge:[],sld:[],shoulder:[],trunk:[],cervical:[]};
 let sortCol='date', sortDir='desc';
@@ -1236,7 +1313,7 @@ function openExerciseBuilder(rec){
   currentEmpForSheet=rec;
   document.getElementById('ex-emp-name').value=rec?rec.name:'';
   document.getElementById('ex-date').value=rec?rec.date:new Date().toISOString().split('T')[0];
-  selectedExercises={};customSetsReps={};suggestedKeys={};hyperSuggestedKeys={};oaActive=rec?.hasOA||false;
+  selectedExercises={};customSetsReps={};suggestedKeys={};hyperSuggestedKeys={};suggestionNotes={};oaActive=rec?.hasOA||false;
   restoredProgram=false;
 
   // A finalized program is the EIS's clinical decision. Once one exists, reopening
@@ -1253,18 +1330,18 @@ function openExerciseBuilder(rec){
     const hyper=rec.hypermobile||{};
     MOVEMENTS.forEach(m=>{
       const s=rec.scores[m.key];
-      const fin=Math.min(s[0].val??3,s[1].val??3);
       const isHyper=hyper[m.key]||false;
+      // A side scored 0 is pain: referral, not exercise. Treat it as "no usable
+      // score" rather than as the worst possible one, so a painful movement does
+      // not silently drive an aggressive plan.
+      const raw=[s[0].val,s[1].val];
+      const painful=raw.some(v=>v===0);
+      if(painful&&!isHyper){suggestionNotes[m.key]={phase:'refer',reason:'Pain reported — refer rather than prescribe.'};return;}
 
-      if(isHyper){
-        hyperSuggestedKeys[m.key]=true;
-        (HYPER_SUGGEST[m.key]||[]).forEach(id=>selectedExercises[id]=true);
-      } else if(fin<=2){
-        suggestedKeys[m.key]=true;
-        (MOBILITY_SUGGEST[m.key]||[]).forEach(id=>selectedExercises[id]=true);
-        if(m.key==='sld')BALANCE_EX.slice(0,2).forEach(e=>selectedExercises[e.id]=true);
-        if(m.key==='trunk')CORE_EX.slice(0,2).forEach(e=>selectedExercises[e.id]=true);
-      }
+      const out=suggestForMovement(m.key,raw[0],raw[1],isHyper);
+      out.ids.forEach(id=>selectedExercises[id]=true);
+      if(out.ids.length)(isHyper?hyperSuggestedKeys:suggestedKeys)[m.key]=true;
+      if(out.phase!=='none')suggestionNotes[m.key]=out;
     });
     // Quality focus bias — add exercises matching preferred types on top of auto-suggestions
     const recQF=rec.qualityFocus||{};
