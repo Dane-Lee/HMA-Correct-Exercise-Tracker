@@ -741,13 +741,71 @@ const EXERCISE_CATEGORY={
   b1:'sld',b2:'sld',b3:'sld',b4:'sld',b5:'sld',b6:'sld',b7:'sld',b8:'sld',b9:'sld',
   co1:'trunk',co2:'trunk',co3:'trunk',co4:'trunk',co5:'trunk',co6:'trunk',co7:'trunk'
 };
+/* Movement faults, each with a STABLE id.
+   The id is the identifier; the label is display text and may be reworded freely.
+   Faults were previously stored by array position with the label as the value, so
+   reordering the list or editing a word silently repointed every historical record
+   — the same class of bug as renumbering an exercise id. Ids are retired, never
+   reused, exactly like exercise ids (see CLAUDE.md).
+   These ids are what fault-driven exercise selection will key on; see
+   EXERCISE-SELECTION-LOGIC.md section 5. */
 const MOVEMENT_FAULTS={
-  lunge:['Limited ROM — back knee did not reach near ground','Knee valgus/varus (front knee)','Front foot not flat','Loss of control/balance','Excessive effort/overexertion','Foot pronation/supination'],
-  sld:['Loss of control/balance','Body rotation','Stance foot falls inward/outward','Stance knee falls inward/outward','Hips not level','Excessive effort/overexertion'],
-  shoulder:['Asymmetry of movement (lateral flexion)','Rounded shoulders','Bottom fingertips don\'t reach opposite inferior scapula angle','Top fingertips don\'t reach midline of spine','Hands overlapping','Finger walking/excessive effort'],
-  trunk:['Excessive lower extremity movement','Spine/pelvis deviation from center','Excessive cervical spine motion','Excessive effort/overexertion'],
-  cervical:['Limited ROM — chin doesn\'t pass midline of clavicle','Shoulder movement during head rotation','Rounded shoulders/forward head lean','Neck deviates from midline','Excessive effort/overexertion']
+  lunge:[
+    {id:'lunge-rom',        label:'Limited ROM — back knee did not reach near ground'},
+    {id:'lunge-knee-valgus',label:'Knee valgus/varus (front knee)'},
+    {id:'lunge-foot-flat',  label:'Front foot not flat'},
+    {id:'lunge-control',    label:'Loss of control/balance'},
+    {id:'lunge-effort',     label:'Excessive effort/overexertion'},
+    {id:'lunge-foot-roll',  label:'Foot pronation/supination'},
+  ],
+  sld:[
+    {id:'sld-control',      label:'Loss of control/balance'},
+    {id:'sld-rotation',     label:'Body rotation'},
+    {id:'sld-foot-roll',    label:'Stance foot falls inward/outward'},
+    {id:'sld-knee-valgus',  label:'Stance knee falls inward/outward'},
+    {id:'sld-hips-level',   label:'Hips not level'},
+    {id:'sld-effort',       label:'Excessive effort/overexertion'},
+  ],
+  shoulder:[
+    {id:'sh-asymmetry',     label:'Asymmetry of movement (lateral flexion)'},
+    {id:'sh-rounded',       label:'Rounded shoulders'},
+    {id:'sh-bottom-reach',  label:'Bottom fingertips don\'t reach opposite inferior scapula angle'},
+    {id:'sh-top-reach',     label:'Top fingertips don\'t reach midline of spine'},
+    {id:'sh-overlap',       label:'Hands overlapping'},
+    {id:'sh-effort',        label:'Finger walking/excessive effort'},
+  ],
+  trunk:[
+    {id:'trunk-le-movement',label:'Excessive lower extremity movement'},
+    {id:'trunk-deviation',  label:'Spine/pelvis deviation from center'},
+    {id:'trunk-cervical',   label:'Excessive cervical spine motion'},
+    {id:'trunk-effort',     label:'Excessive effort/overexertion'},
+  ],
+  cervical:[
+    {id:'cerv-rom',         label:'Limited ROM — chin doesn\'t pass midline of clavicle'},
+    {id:'cerv-shoulder',    label:'Shoulder movement during head rotation'},
+    {id:'cerv-forward-head',label:'Rounded shoulders/forward head lean'},
+    {id:'cerv-deviation',   label:'Neck deviates from midline'},
+    {id:'cerv-effort',      label:'Excessive effort/overexertion'},
+  ]
 };
+
+/* Records written before fault ids existed key observations by array position.
+   Read them through here so old assessments keep their findings — and so a label
+   edit never resolves to a different fault. */
+function faultIdAt(key,idx){const f=MOVEMENT_FAULTS[key]||[];return f[idx]?f[idx].id:null;}
+function normalizeObservations(key,stored){
+  const out={};
+  Object.keys(stored||{}).forEach(k=>{
+    // Legacy: numeric array position. Current: a stable id.
+    const id=/^\d+$/.test(k)?faultIdAt(key,Number(k)):k;
+    if(id)out[id]=stored[k];
+  });
+  return out;
+}
+function faultLabel(key,id){
+  const hit=(MOVEMENT_FAULTS[key]||[]).find(f=>f.id===id);
+  return hit?hit.label:id;
+}
 const QUALITY_TYPES=['flexibility','mobility','static stabilization','dynamic stabilization','strength'];
 const QUALITY_LABELS={'flexibility':'Flexibility','mobility':'Mobility','static stabilization':'Static Stabilization','dynamic stabilization':'Dynamic Stabilization','strength':'Strength'};
 let records=[], editingId=null, restoredProgram=false, selectedExercises={}, customSetsReps={}, suggestedKeys={}, hyperSuggestedKeys={}, currentEmpForSheet=null, oaActive=false, libraryBuilt=false, _pendingSheet=null;
@@ -795,7 +853,7 @@ function buildScoreGrid(){
         <button class="detail-toggle-btn" onclick="toggleDetailPanel('focus-${m.key}',this)">▾ Quality Focus</button>
       </div>
       <div class="detail-panel" id="obs-${m.key}" style="display:none">
-        ${MOVEMENT_FAULTS[m.key].map((f,i)=>`<label class="obs-label"><input type="checkbox" id="obs-cb-${m.key}-${i}" onchange="toggleObs('${m.key}',${i},this.checked)"> ${f}</label>`).join('')}
+        ${MOVEMENT_FAULTS[m.key].map(f=>`<label class="obs-label"><input type="checkbox" id="obs-cb-${m.key}-${f.id}" onchange="toggleObs('${m.key}','${f.id}',this.checked)"> ${f.label}</label>`).join('')}
       </div>
       <div class="detail-panel" id="focus-${m.key}" style="display:none">
         ${QUALITY_TYPES.map(q=>`<label class="focus-label"><input type="checkbox" id="focus-cb-${m.key}-${q.replace(/\s/g,'-')}" onchange="toggleQuality('${m.key}','${q}',this.checked)"> ${QUALITY_LABELS[q]}</label>`).join('')}
@@ -830,9 +888,11 @@ function toggleDetailPanel(id,btn){
   p.style.display=open?'none':'block';
   btn.classList.toggle('open',!open);
 }
-function toggleObs(key,idx,checked){
-  if(checked)observations[key][idx]=MOVEMENT_FAULTS[key][idx];
-  else delete observations[key][idx];
+function toggleObs(key,id,checked){
+  // Store the label alongside the id so a historical record still prints the
+  // wording the EIS actually saw, even if the label is later reworded.
+  if(checked)observations[key][id]=faultLabel(key,id);
+  else delete observations[key][id];
 }
 function toggleQuality(key,quality,checked){
   if(checked){if(!qualityFocus[key].includes(quality))qualityFocus[key].push(quality);}
@@ -945,7 +1005,7 @@ function clearForm(){
     if(btn)btn.classList.remove('active');
     if(block)block.classList.remove('hypermobile');
     observations[m.key]={};
-    MOVEMENT_FAULTS[m.key].forEach((_,i)=>{const cb=document.getElementById(`obs-cb-${m.key}-${i}`);if(cb)cb.checked=false;});
+    MOVEMENT_FAULTS[m.key].forEach(f=>{const cb=document.getElementById(`obs-cb-${m.key}-${f.id}`);if(cb)cb.checked=false;});
     qualityFocus[m.key]=[];
     QUALITY_TYPES.forEach(q=>{const cb=document.getElementById(`focus-cb-${m.key}-${q.replace(/\s/g,'-')}`);if(cb)cb.checked=false;});
     ['obs','focus'].forEach(type=>{const p=document.getElementById(`${type}-${m.key}`);if(p)p.style.display='none';});
@@ -975,7 +1035,8 @@ function editRecord(id){
   const rObs=r.observations||{};const rQF=r.qualityFocus||{};
   MOVEMENTS.forEach(m=>{
     observations[m.key]={};qualityFocus[m.key]=[];
-    Object.keys(rObs[m.key]||{}).forEach(i=>{observations[m.key][i]=rObs[m.key][i];const cb=document.getElementById(`obs-cb-${m.key}-${i}`);if(cb)cb.checked=true;});
+    const norm=normalizeObservations(m.key,rObs[m.key]);
+    Object.keys(norm).forEach(i=>{observations[m.key][i]=norm[i];const cb=document.getElementById(`obs-cb-${m.key}-${i}`);if(cb)cb.checked=true;});
     (rQF[m.key]||[]).forEach(q=>{qualityFocus[m.key].push(q);const cb=document.getElementById(`focus-cb-${m.key}-${q.replace(/\s/g,'-')}`);if(cb)cb.checked=true;});
   });
   showTab('new');
