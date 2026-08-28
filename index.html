@@ -112,6 +112,10 @@ body{font-family:'Barlow',Arial,sans-serif;font-size:22px;background:#1a1a1a;col
    so they get one shared look and sit apart from the actions around them. */
 .btn-handoff{background:#eef3fb;color:#1c4b8f;border:1px solid #b8cce8;font-weight:700}
 .btn-handoff:hover{background:#dde8f7}
+/* The reasoning behind an auto-suggestion, shown under the category header.
+   Quiet by design — it explains, it does not compete with the exercise list. */
+.ex-why{padding:7px 12px;font-size:15px;line-height:1.45;color:#4a4a4a;background:#fafafa;border-bottom:1px solid #ececec}
+body.dark .ex-why{color:#a8a8a8;background:#1c1c1c;border-bottom-color:#2e2e2e}
 /* A record with no finalized program cannot go to Cadence. Shown disabled
    rather than hidden: an absent button reads as "broken" exactly as often as
    "not ready yet", and the tooltip says which. */
@@ -560,6 +564,59 @@ const MOBILITY_SUGGEST={
    entirely flexibility/mobility, HYPER_SUGGEST entirely stabilization/strength.
    They are used here as clinician-chosen PRIORITY within a type-derived pool,
    rather than as the answer itself. */
+/* ── Fault-driven selection (EXERCISE-SELECTION-LOGIC.md §5) ───────────────
+   Which faults the EIS ticked decides WHICH exercise; severity decides which
+   KIND. Faults map onto the impairment vocabulary the library already uses —
+   EXERCISE_TARGETS — so no second table is needed and a fault can reach an
+   exercise in another movement's category. That cross-category reach is the
+   point: a cervical rotation limit is better answered with thoracic work than
+   with neck work, and a lunge fault is often an ankle problem.
+
+   Mapping approved by the owner 2026-08-28; rationale, evidence strength and
+   the rows that are inference rather than research are in FAULT-MAPPING-DRAFT.md. */
+const FAULT_IMPAIRMENT={
+  // Lunge
+  'lunge-rom':         ['hip-flexors','calves-ankle'],
+  'lunge-knee-valgus': ['hip-abductors','glutes','calves-ankle'],
+  'lunge-foot-flat':   ['calves-ankle'],
+  'lunge-control':     ['single-leg-balance','quadriceps'],
+  'lunge-foot-roll':   ['calves-ankle','single-leg-balance'],
+  // Single leg dip
+  'sld-hips-level':    ['hip-abductors'],
+  'sld-knee-valgus':   ['hip-abductors','glutes','calves-ankle'],
+  'sld-control':       ['single-leg-balance','balance'],
+  'sld-rotation':      ['core-rotation','core-anterior'],
+  'sld-foot-roll':     ['calves-ankle','single-leg-balance'],
+  // Shoulder reach
+  'sh-rounded':        ['pectorals','lats','scapular'],
+  'sh-top-reach':      ['triceps','lats','shoulder-mobility'],
+  'sh-bottom-reach':   ['shoulder-mobility','pectorals'],
+  'sh-overlap':        ['rotator-cuff','scapular'],
+  // Trunk rotation
+  'trunk-cervical':    ['thoracic-mobility','thoracic-rotation'],
+  'trunk-le-movement': ['thoracic-rotation','core-rotation'],
+  'trunk-deviation':   ['core-anterior','lumbar-mobility'],
+  // Cervical rotation
+  'cerv-forward-head': ['cervical-retraction','thoracic-mobility','thoracic-rotation'],
+  'cerv-rom':          ['cervical-rotation','thoracic-rotation'],
+  'cerv-shoulder':     ['scapular','thoracic-rotation'],
+  'cerv-deviation':    ['cervical-rotation','cervical-lateral','cervical-retraction'],
+};
+
+/* Six faults deliberately map to nothing. "Excessive effort/overexertion"
+   describes how the movement was produced, not what restricts it, and
+   "asymmetry of movement" is laterality that the asymmetry rule already handles.
+   Forcing a corrective out of either is how every employee ends up with the same
+   list again — so these raise priority and flag the EIS, and select nothing. */
+const MODIFIER_FAULTS=new Set([
+  'lunge-effort','sld-effort','sh-effort','trunk-effort','cerv-effort','sh-asymmetry',
+]);
+
+/* Overlapping hands is the HMA's own hypermobility caution. Stretching is
+   contraindicated, so this must SUPPRESS flexibility work for the movement
+   rather than merely add stability alongside it. */
+const SUPPRESS_FLEXIBILITY_FAULTS=new Set(['sh-overlap']);
+
 const RESTORE_TYPES=['flexibility','mobility'];
 const BUILD_TYPES=['static stabilization','dynamic stabilization','strength'];
 const PER_MOVEMENT_DEFAULT=2;
@@ -574,44 +631,78 @@ function poolFor(movementKey,types,curated){
     .sort((a,b)=>rank(a)-rank(b));
 }
 
+/* Every exercise in the library, whatever category it sits in, whose target is
+   one of the impairments named — ranked by how many of the ticked faults point
+   at that impairment, so a finding two faults agree on outranks one only a
+   single fault raised. Ties break toward the movement's own category, which
+   keeps the sheet coherent when the evidence is indifferent. */
+function faultDrivenPool(movementKey,targets,types){
+  const weight={};
+  targets.forEach(t=>{weight[t]=(weight[t]||0)+1;});
+  const ids=Object.keys(EXERCISE_TARGETS).filter(id=>
+    weight[EXERCISE_TARGETS[id]]&&types.includes(EX_TYPE[id]));
+  return ids.sort((a,b)=>
+    (weight[EXERCISE_TARGETS[b]]-weight[EXERCISE_TARGETS[a]])
+    ||((EXERCISE_CATEGORY[a]===movementKey?0:1)-(EXERCISE_CATEGORY[b]===movementKey?0:1))
+    ||a.localeCompare(b));
+}
+
 /* One movement in, the exercises it should contribute out — plus why, so the
    EIS can see the reasoning rather than a bare list.
-   left/right are the raw per-side scores; pain is handled by the caller. */
-function suggestForMovement(movementKey,left,right,isHyper,limit){
+   left/right are the raw per-side scores; pain is handled by the caller.
+   faultIds are the stable ids ticked for this movement. */
+function suggestForMovement(movementKey,left,right,isHyper,faultIds,limit){
   const n=limit??PER_MOVEMENT_DEFAULT;
   const L=left??3, R=right??3;
   const worst=Math.min(L,R);
   const asymmetry=Math.abs(L-R);
+  const faults=(faultIds||[]).filter(f=>!MODIFIER_FAULTS.has(f));
+  const modifiers=(faultIds||[]).filter(f=>MODIFIER_FAULTS.has(f));
 
-  if(worst>=3&&!isHyper)return{ids:[],phase:'none',asymmetry,reason:'Clean on both sides.'};
+  if(worst>=3&&!isHyper&&!faults.length)
+    return{ids:[],phase:'none',asymmetry,modifiers,reason:'Clean on both sides.'};
 
-  let phase,pool;
+  // Severity sets the PHASE; faults choose within it. A restricted pattern gets
+  // the mobility work for the region a fault implicates, not the strengthening —
+  // "do not load a dysfunctional pattern" outranks "this fault means weakness".
+  let phase,types;
   if(isHyper){
-    // Hypermobility: stretching is contraindicated regardless of score, so this
-    // outranks the severity rule. Pre-existing behaviour, kept deliberately.
-    phase='stabilize';
-    pool=poolFor(movementKey,BUILD_TYPES,HYPER_SUGGEST[movementKey]);
+    // Hypermobility: stretching is contraindicated whatever the score says.
+    phase='stabilize'; types=BUILD_TYPES;
   }else if(worst<=1){
-    phase='restore';
-    pool=poolFor(movementKey,RESTORE_TYPES,MOBILITY_SUGGEST[movementKey]);
+    phase='restore'; types=RESTORE_TYPES;
   }else{
-    phase='build';
-    pool=poolFor(movementKey,BUILD_TYPES,HYPER_SUGGEST[movementKey]);
+    phase='build'; types=BUILD_TYPES;
   }
+
+  // Overlapping hands is a hypermobility sign: suppress flexibility outright.
+  const suppress=(faultIds||[]).some(f=>SUPPRESS_FLEXIBILITY_FAULTS.has(f));
+  if(suppress){phase='stabilize'; types=BUILD_TYPES;}
+
+  const targets=faults.flatMap(f=>FAULT_IMPAIRMENT[f]||[]);
+  let pool=targets.length?faultDrivenPool(movementKey,targets,types):[];
+  let driver=pool.length?'faults':'severity';
+  // A fault can name an impairment the library cannot address in this phase —
+  // hip abductors have no flexibility exercise, so a restricted score with a
+  // valgus fault finds nothing. Fall back rather than return an empty plan.
+  if(!pool.length)pool=poolFor(movementKey,types,
+    types===RESTORE_TYPES?MOBILITY_SUGGEST[movementKey]:HYPER_SUGGEST[movementKey]);
 
   // Asymmetry is an independent finding, not a rounding error: in an industrial
   // population each 1% of bilateral asymmetry raised low-back injury risk 18.5%.
-  // Math.min() alone discards it, so widen the selection when the sides differ.
   const ids=pool.slice(0,asymmetry>=1?n+1:n);
 
   const worseSide=L===R?null:(L<R?0:1);
-  const reason=isHyper
-    ?'Hypermobile — stabilization rather than stretching.'
-    :worst<=1
-      ?'Restricted (3+ faults or reduced range) — restore motion before loading.'
-      :'Full range with compensation — stabilize and strengthen.';
+  const reason=suppress
+    ?'Hands overlapped — hypermobility. Stabilization only; stretching withheld.'
+    :isHyper
+      ?'Hypermobile — stabilization rather than stretching.'
+      :worst<=1
+        ?'Restricted (3+ faults or reduced range) — restore motion before loading.'
+        :'Full range with compensation — stabilize and strengthen.';
 
-  return{ids,phase,asymmetry,worseSide,reason};
+  return{ids,phase,asymmetry,worseSide,reason,driver,
+         targets:[...new Set(targets)],modifiers};
 }
 
 let IMAGE_REGISTRY={};
@@ -1338,7 +1429,10 @@ function openExerciseBuilder(rec){
       const painful=raw.some(v=>v===0);
       if(painful&&!isHyper){suggestionNotes[m.key]={phase:'refer',reason:'Pain reported — refer rather than prescribe.'};return;}
 
-      const out=suggestForMovement(m.key,raw[0],raw[1],isHyper);
+      // Faults the EIS actually ticked, read through the id normalizer so
+      // assessments predating stable fault ids still drive selection.
+      const ticked=Object.keys(normalizeObservations(m.key,(rec.observations||{})[m.key]));
+      const out=suggestForMovement(m.key,raw[0],raw[1],isHyper,ticked);
       out.ids.forEach(id=>selectedExercises[id]=true);
       if(out.ids.length)(isHyper?hyperSuggestedKeys:suggestedKeys)[m.key]=true;
       if(out.phase!=='none')suggestionNotes[m.key]=out;
@@ -1394,11 +1488,28 @@ function buildExerciseUI(){
     else if(isMobility){headerClass='suggested';headerLabel+=` &nbsp;⚑ Auto-suggested`;}
     const qfPrefs=(currentEmpForSheet?.qualityFocus||{})[key]||[];
     if(qfPrefs.length)headerLabel+=` &nbsp;◈ ${qfPrefs.map(q=>QUALITY_LABELS[q]).join(', ')}`;
+    // Why this movement got what it got. A suggestion the EIS cannot interrogate
+    // is one they have to either trust blindly or ignore; neither is useful.
+    const note=suggestionNotes[key];
+    let why='';
+    if(note&&!restoredProgram){
+      const bits=[note.reason];
+      if(note.driver==='faults'&&note.targets?.length)
+        bits.push(`From the faults you recorded: ${note.targets.join(', ')}.`);
+      else if(note.driver==='severity'&&note.phase!=='refer'&&note.phase!=='none')
+        bits.push('No recorded fault pointed anywhere reachable, so this follows the score alone.');
+      if(note.asymmetry>=1&&note.worseSide!==null)
+        bits.push(`Asymmetric by ${note.asymmetry} — ${MOVEMENTS.find(m=>m.key===key)?.sides[note.worseSide]||'one side'} is worse.`);
+      if(note.modifiers?.length)
+        bits.push(`Also noted: ${note.modifiers.map(f=>faultLabel(key,f)).join('; ')}.`);
+      why=`<div class="ex-why">${bits.join(' ')}</div>`;
+    }
     return`<div class="ex-category">
       <div class="ex-cat-header ${headerClass}">
         <span>${headerLabel}</span>
         <span style="font-size:15px;font-weight:400;opacity:.7">Click to select / deselect</span>
       </div>
+      ${why}
       <div class="ex-grid">${data.exercises.map(ex=>{
         const isCaution=oaActive&&OA_CAUTION.has(ex.id);
         const setsVal=(customSetsReps[ex.id]!==undefined?customSetsReps[ex.id]:ex.sets).replace(/"/g,'&quot;');
