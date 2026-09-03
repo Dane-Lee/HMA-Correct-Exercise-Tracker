@@ -500,17 +500,115 @@ body.dark #paste-import-panel{background:#1e1e1e;border-color:#444;color:#d8d8d8
 </div>
 
 <script>
-// localStorage adapter for window.storage
-window.storage = {
-  get: function(key) {
-    var val = localStorage.getItem(key);
-    return Promise.resolve(val !== null ? { value: val } : null);
-  },
-  set: function(key, value) {
-    localStorage.setItem(key, value);
-    return Promise.resolve();
+/* window.storage -- shared local store, with localStorage as the fallback.
+ *
+ * WHY: the Tracker and the Overlay are separate browser origins, and two
+ * origins cannot read each other's localStorage. That is what made moving a
+ * record between them a copy/paste, and un-hosting the Tracker does not fix it
+ * by itself -- one shared store does. See LOCAL-FIRST-PROPOSAL.md.
+ *
+ * The API is served by the HMA-Manual process at /api/local-store, and the
+ * Tracker is served from that same process at /tracker, so this is same-origin:
+ * no CORS, no configurable base URL.
+ *
+ * FALLBACK, and the one thing to understand before changing it:
+ *
+ *   - When the API answers, it is the store.
+ *   - When it does not (server not started, or the Tracker opened straight from
+ *     Vercel or the filesystem), localStorage is the store and a banner says so.
+ *   - Every write is mirrored to localStorage, so there is always a local copy.
+ *
+ * SEEDING happens exactly once, and only when the API has NOTHING for a key
+ * while localStorage does. That is the migration out of the browser, and being
+ * conditional on "API is empty" is what makes it idempotent.
+ *
+ * DIVERGENCE is handled by refusing to guess. If the API has a value and
+ * localStorage has a different one -- which is what an offline editing session
+ * leaves behind -- the API wins for reads and localStorage is left untouched, so
+ * the offline work is still recoverable by hand. Auto-merging two roster blobs
+ * with no timestamps would be a guess, and a wrong guess loses records silently.
+ */
+window.storage = (function () {
+  var API = '/api/local-store/';
+  var online = null;          // null = not yet known
+  var seeded = {};            // key -> true, so seeding is attempted once
+  var warned = false;
+
+  function localGet(key) {
+    try {
+      var val = localStorage.getItem(key);
+      return val !== null ? { value: val } : null;
+    } catch (e) { return null; }
   }
-};
+
+  function localSet(key, value) {
+    try { localStorage.setItem(key, value); } catch (e) {}
+  }
+
+  function goOffline() {
+    online = false;
+    if (warned) return;
+    warned = true;
+    console.warn(
+      '[HMA] Shared local store unreachable -- using this browser\'s storage. ' +
+      'Records saved now will not be visible to the Overlay until the ' +
+      'HMA-Manual server is running and they are saved again.'
+    );
+    try {
+      var bar = document.createElement('div');
+      bar.textContent =
+        'Offline: saving to this browser only. Start the HMA-Manual server to share records.';
+      bar.style.cssText =
+        'position:fixed;bottom:0;left:0;right:0;z-index:99999;padding:6px 12px;' +
+        'background:#8a6d3b;color:#fff;font:13px system-ui,sans-serif;text-align:center';
+      if (document.body) document.body.appendChild(bar);
+    } catch (e) {}
+  }
+
+  return {
+    get: function (key) {
+      return fetch(API + encodeURIComponent(key), { headers: { 'Accept': 'application/json' } })
+        .then(function (res) {
+          online = true;
+          if (res.status === 404) {
+            // Nothing stored yet. If this browser has a copy, this is the
+            // one-time migration out of localStorage.
+            var local = localGet(key);
+            if (local && !seeded[key]) {
+              seeded[key] = true;
+              return fetch(API + encodeURIComponent(key), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ value: local.value })
+              }).then(function () { return local; }, function () { return local; });
+            }
+            return null;
+          }
+          if (!res.ok) throw new Error('local-store GET ' + res.status);
+          return res.json().then(function (body) { return { value: body.value }; });
+        })
+        .catch(function () {
+          goOffline();
+          return localGet(key);
+        });
+    },
+
+    set: function (key, value) {
+      localSet(key, value);   // always keep a local copy
+      return fetch(API + encodeURIComponent(key), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: value })
+      }).then(function (res) {
+        if (!res.ok) throw new Error('local-store PUT ' + res.status);
+        online = true;
+      }).catch(function () {
+        goOffline();
+        // Already written to localStorage above, so this is not a lost write.
+      });
+    }
+  };
+})();
 </script>
 
 <script>
