@@ -1458,18 +1458,27 @@ function buildPlanPayload(rec){
     const ex=byId.get(pe.id);
     if(!ex)throw new Error('Exercise "'+pe.id+'" is no longer in the library. Rebuild this program before sending it.');
     const dflt=ex.sets;
+    // NO `instructions`, NO `image_ref` -- Cadence resolves both from its own
+    // bundled library, keyed by this id. Decision E12 was reversed by the owner
+    // on 2026-09-15 once the real capacity was measured: carrying the full text
+    // capped a plan at 11-14 exercises, past which Cadence's issue page refused
+    // outright, and an EIS could reach that with the quality-focus picker without
+    // ever being warned. Slimming clears the whole 44-exercise library.
+    //
+    // `name` STAYS even though it is equally derivable. It is what an employee
+    // sees if their phone's library has not caught up with a newly added
+    // exercise -- a heading with no description beats a blank card -- and the
+    // plan contract requires it, so keeping it means no version bump.
     return{
       source_exercise_id:pe.id,
       name:ex.name,
-      instructions:ex.inst,
       movement_category:CADENCE_MOVEMENT[EXERCISE_CATEGORY[pe.id]],
       exercise_type:(EX_TYPE[pe.id]||'').replace(/\s+/g,'_'),
       default_prescription:dflt,
       prescription_override:pe.prescription&&pe.prescription!==dflt?pe.prescription:null,
       duration_sec:EX_DURATION[pe.id]||0,
       days:(pe.days||[]).slice(),
-      sort_order:pe.sort_order,
-      image_ref:_imageRef(pe.id)
+      sort_order:pe.sort_order
     };
   });
 

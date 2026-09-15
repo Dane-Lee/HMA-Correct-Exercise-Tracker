@@ -105,12 +105,14 @@ test('OA_CAUTION only lists exercises that exist', () => {
   assert.deepEqual(ghosts, []);
 });
 
-/* The Cadence payload sends `image_ref` as a bare filename — Cadence resolves it
-   against its own assets, so a path or an extension it cannot render is a broken
-   image on an employee's phone. That property is really a property of this map:
-   image_ref is derived from it, so if every entry here is `/images/<name>.webp`
-   with nothing nested, image_ref cannot be anything else. Asserted here so the
-   verification checklist does not have to ask a human to eyeball it. */
+/* Cadence resolves an exercise's image against its own assets by bare filename,
+   so a path or an extension it cannot render is a broken image on an employee's
+   phone. That property is really a property of THIS map: since E12 was reversed
+   (2026-09-15) the plan no longer carries `image_ref` at all, and Cadence's
+   bundled library derives it from here instead — so if every entry is
+   `/images/<name>.webp` with nothing nested, the filename cannot be anything
+   else. Asserted here so the verification checklist does not have to ask a human
+   to eyeball it. */
 test('every image path is a flat /images/<name>.webp with no nested directory', () => {
   const bad = Object.entries(lib.DEFAULT_IMAGES)
     .filter(([, p]) => !/^\/images\/[^/]+\.webp$/.test(p))
