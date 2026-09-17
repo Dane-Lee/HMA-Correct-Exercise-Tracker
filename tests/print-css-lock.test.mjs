@@ -38,7 +38,19 @@ function styleBlock(source) {
   const open = source.indexOf("<style>");
   const close = source.indexOf("</style>");
   assert.ok(open > 0 && close > open, "index.html has no <style> block");
-  return source.slice(open + "<style>".length, close);
+  // Comments come out HERE, before anything counts braces.
+  //
+  // The scanner below walks the text character by character looking for `{` and
+  // `}`, and a CSS comment is free to contain either. Step 3's header comment
+  // quotes `body{font-size:22px}` while explaining why the size goes on `html`
+  // instead -- and that brace ended a rule in the middle of a sentence, so the
+  // rest of the paragraph was reported as a NEW RULE TARGETING THE PRINTED
+  // PROGRAM. A print guard that cries wolf over prose is a print guard someone
+  // eventually deletes.
+  //
+  // Safe for what this file protects: every locked rule is a minified one-liner
+  // with no comment inside it, so nothing real is lost by stripping first.
+  return source.slice(open + "<style>".length, close).replace(/\/\*[\s\S]*?\*\//g, "");
 }
 
 /** The `@media print{ ... }` block, matched by brace depth rather than by regex.
@@ -66,13 +78,11 @@ function topLevelRules(css) {
     const ch = css[i];
     if (ch === "{") {
       if (depth === 0) {
-        // Comments come out of the SELECTOR, not the body. A `/* PRINT */`
-        // banner sitting above a rule is part of the text preceding its `{`,
-        // and leaving it in made `.print-preview` key as
-        // "/* PRINT */ .print-preview" (with the newline) -- present in the
-        // fixture, absent under
-        // the name every assertion looks it up by.
-        const selector = css.slice(start, i).replace(/\/\*[\s\S]*?\*\//g, "").trim();
+        // `styleBlock` has already removed every comment, so a selector is
+        // just the text before its brace. Without that, a `/* PRINT */` banner
+        // above a rule became part of its key and `.print-preview` was present
+        // in the fixture under a name no assertion looked it up by.
+        const selector = css.slice(start, i).trim();
         const open = i;
         let d = 0;
         for (; i < css.length; i++) {
