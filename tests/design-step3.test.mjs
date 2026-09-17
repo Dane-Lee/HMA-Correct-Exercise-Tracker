@@ -97,7 +97,7 @@ test("the printed program still names its own face", () => {
   // be dragged along is that every print rule names its face explicitly.
   assert.match(
     html,
-    /\.print-preview\{[^}]*font-family:'Barlow',Arial,sans-serif/,
+    /\.print-preview\{[^}]*font-family:'Bitter',Georgia,serif/,
     ".print-preview no longer names its own face, so it will inherit the screen's",
   );
 });

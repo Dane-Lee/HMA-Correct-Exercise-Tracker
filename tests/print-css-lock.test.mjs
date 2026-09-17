@@ -157,19 +157,25 @@ test("no new rule quietly joins the printed program", () => {
   );
 });
 
-test("the print sheet's font is pinned to Barlow, independently of the screen", () => {
+test("the print sheet names its own faces, independently of the screen", () => {
   // The whole reason the screen's type can move at all. Pinned as its own
   // assertion because it is the load-bearing half of "print stays what it is":
   // if `.print-preview` ever inherits the body face, changing the screen changes
   // the paper, and the fixture above would still pass on the day it happened.
+  //
+  // Bitter since 2026-09-17: the owner took the printed program to the ATI
+  // brand (guide 3.1, body in Bitter, titles in Barlow Condensed). The fixture
+  // was regenerated for that deliberately; this assertion is what stops the
+  // NEXT screen change from dragging the paper along by accident.
   assert.match(
     current[".print-preview"] ?? "",
-    /font-family:'Barlow',Arial,sans-serif/,
-    ".print-preview no longer names Barlow itself, so it will inherit the screen's face",
+    /font-family:'Bitter',Georgia,serif/,
+    ".print-preview no longer names its own body face, so it will inherit the screen's",
   );
-  assert.match(
-    html,
-    /@font-face\{font-family:'Barlow'/,
-    "the embedded Barlow faces are gone; the printed program has nothing to render in",
-  );
+  for (const face of ["Bitter", "Barlow Condensed", "Barlow"]) {
+    assert.ok(
+      html.includes(`@font-face{font-family:'${face}'`),
+      `the embedded ${face} faces are gone; the printed program has nothing to render in`,
+    );
+  }
 });
