@@ -58,15 +58,48 @@ function screenCss() {
 
 const screen = screenCss();
 
-test("Barlow is gone from the screen and kept for the paper", () => {
-  // The whole point of pinning `.print-preview`'s font in the print lock: the
-  // embedded faces stay, and only the printed program may reach them.
-  assert.ok(
-    !/Barlow/.test(screen),
-    "a screen rule still names Barlow; the four embedded faces exist for the " +
-      "printed program only (see the FONTS block's own comment)",
+test("the screen is set in the ATI brand typefaces", () => {
+  // REVERSED 2026-09-17, the same day it was written. This test used to assert
+  // the opposite -- that Barlow was GONE from the screen -- because design step
+  // 3 moved this app onto the Manual's Trebuchet stack.
+  //
+  // Then the owner produced the ATI Brand Identity Guidelines v1.8, and §3.1
+  // names Barlow Condensed Bold as the ATI display face and Bitter as the body
+  // face. Barlow Condensed was the brand-correct typeface on this screen the
+  // whole time; step 3 removed it. The guide is a published standard and the
+  // Manual was a preference, so the guide wins and this assertion inverts.
+  //
+  // Kept as one test with its history rather than deleted and rewritten,
+  // because "why does the Tracker use Barlow again" is a question someone will
+  // ask, and the answer should be here.
+  assert.match(screen, /--font-display:\s*"Barlow Condensed"/,
+    "the display face is no longer Barlow Condensed (ATI Brand Guide 3.1)");
+  assert.match(screen, /--font-body:\s*"Bitter"/,
+    "the body face is no longer Bitter (ATI Brand Guide 3.1)");
+  assert.match(screen, /h1,h2[^{]*\{[^}]*var\(--font-display\)/,
+    "headings do not use the display face");
+  assert.match(screen, /h1,h2[^{]*\{[^}]*text-transform:uppercase/,
+    "the guide sets headlines ALL UPPERCASE; that is a CSS treatment, so the " +
+      "markup stays Title Case per DESIGN-RULES rule 1");
+
+  for (const face of ["Barlow Condensed", "Barlow", "Bitter"]) {
+    assert.ok(
+      html.includes(`@font-face{font-family:'${face}'`),
+      `${face} is not embedded. Both families are SIL Open Font License, which ` +
+        `is the reason the brand faces can ship where Trebuchet MS could not.`,
+    );
+  }
+});
+
+test("the printed program still names its own face", () => {
+  // The load-bearing half. The screen's typeface has now changed twice in one
+  // day; the paper has not moved either time, and the only reason it could not
+  // be dragged along is that every print rule names its face explicitly.
+  assert.match(
+    html,
+    /\.print-preview\{[^}]*font-family:'Barlow',Arial,sans-serif/,
+    ".print-preview no longer names its own face, so it will inherit the screen's",
   );
-  assert.match(html, /@font-face\{font-family:'Barlow'/, "the embedded faces are gone entirely");
 });
 
 test("the screen's type scale is the owner's 22px, set where rem can see it", () => {

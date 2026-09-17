@@ -94,10 +94,36 @@ test('every mapped image resolves to a file on disk', () => {
   assert.deepEqual(missing, []);
 });
 
+/* The two brand marks are not exercise artwork and are referenced from the
+   markup rather than from DEFAULT_IMAGES, so they are named here rather than
+   discovered. TWO of them, and which is used where is the brand guide's rule,
+   not a preference: §1.5/§1.6 say the white REVERSE lockup goes on dark grounds
+   (the app header) and the 2/C POSITIVE on white (both printed sheets).
+   `ati-logo.jpg` was the single non-compliant file both used to share -- wrong
+   reds, wrong resolution -- and is gone. */
+const BRAND_MARKS = new Set(['ati-logo-reverse.png', 'ati-logo-positive.png']);
+
 test('no image file is shipped without being referenced', () => {
   const used = new Set(Object.values(lib.DEFAULT_IMAGES).map((p) => p.replace('/images/', '')));
-  const strays = fs.readdirSync(imagesDir).filter((f) => f !== 'ati-logo.jpg' && !used.has(f));
+  const strays = fs.readdirSync(imagesDir).filter((f) => !BRAND_MARKS.has(f) && !used.has(f));
   assert.deepEqual(strays, []);
+});
+
+test('both brand marks are on disk and each is used where the guide says', () => {
+  const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  for (const mark of BRAND_MARKS) {
+    assert.ok(fs.existsSync(`${imagesDir}/${mark}`), `${mark} is missing from public/images`);
+    assert.ok(html.includes(mark), `${mark} is shipped but never referenced`);
+  }
+  assert.ok(
+    !html.includes('ati-logo.jpg'),
+    'the non-compliant ati-logo.jpg is referenced again; its reds are not ATI Bright Red',
+  );
+  // The header is the dark ground; the two print sheets are white paper.
+  const header = html.slice(html.indexOf('class="header-logo"'), html.indexOf('class="header-logo"') + 200);
+  assert.match(header, /ati-logo-reverse\.png/, 'the dark header must carry the REVERSE lockup');
+  const printUses = (html.match(/ati-logo-positive\.png/g) || []).length;
+  assert.equal(printUses, 2, 'both printed sheets must carry the POSITIVE lockup');
 });
 
 test('OA_CAUTION only lists exercises that exist', () => {
