@@ -284,7 +284,12 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
 .header{background:var(--tk-header);color:rgb(237 232 226);
   border-radius:var(--r-card);border:1px solid var(--tk-rim);box-shadow:var(--shadow-card);
   padding:16px 22px;margin:20px auto 0;max-width:var(--tk-wide);width:calc(100% - 44px);
-  display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px}
+/* Three columns with equal outer tracks, so the title is centred on the HEADER
+   rather than on what the mark and the toggle leave over. Owner, 2026-09-17. */
+.header-logo{justify-self:start}
+.header h1{grid-column:2;text-align:center}
+.header .dark-toggle{grid-column:3;justify-self:end;margin-left:0}
 /* THE WHITE PLATE IS GONE. Brand Guide §1.5/§1.6: on dark backgrounds use the
    1/C WHITE REVERSE logomark so the negative space of the APEX lets the ground
    break through. A white box behind a dark logo defeats the effect the mark is
@@ -333,6 +338,8 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
    fixture. */
 .card{background:var(--tk-card);border:1px solid var(--tk-rim);
   border-radius:var(--r-card);padding:22px 24px;margin-bottom:20px;box-shadow:var(--shadow-card)}
+/* Owner, 2026-09-17: the library's title centred and larger. */
+.card-title--hero{justify-content:center;font-size:1.55rem;padding-bottom:14px}
 .card-title{font-size:1.1rem;font-weight:700;color:var(--tx);background:none;
   margin:0 0 16px;padding:0 0 12px;border-bottom:1px solid var(--tk-rim);border-radius:0;
   display:flex;align-items:center;gap:12px;flex-wrap:wrap;
@@ -599,6 +606,23 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
 .lib-sets{font-size:.59rem;font-weight:700;color:var(--tx2);background:var(--panel-mid);
   padding:4px 9px;border-radius:var(--r-pill);border-left:2px solid rgb(var(--accent))}
 
+/* ---------- THE INFO ICON ----------
+   DESIGN-RULES rule 2: a screen carries its title, subtitle and content, and
+   every explanation goes behind a hoverable "i". Focusable, so a tablet can
+   reach it by tap. Same component as the Overlay's. */
+.info{display:inline-flex;align-items:center;justify-content:center;
+  width:1.1em;height:1.1em;flex:none;margin-left:.45em;vertical-align:middle;
+  border-radius:var(--r-pill);border:1px solid var(--tk-rim);background:var(--panel);
+  color:var(--tx2);font-size:.7rem;font-weight:700;font-style:normal;text-transform:none;
+  letter-spacing:0;line-height:1;cursor:help;position:relative;user-select:none;font-family:var(--font-sub)}
+.info:hover,.info:focus{background:rgb(var(--accent));border-color:transparent;color:#fff;outline:none}
+.info>.tip{position:absolute;left:0;top:calc(100% + 9px);width:max-content;max-width:min(28rem,70vw);
+  z-index:60;background:rgb(var(--surface));color:var(--tx);border:1px solid var(--tk-rim);
+  border-radius:var(--r-input);box-shadow:var(--shadow-card);padding:11px 14px;
+  font-size:.7rem;font-weight:400;line-height:1.5;text-align:left;text-transform:none;
+  letter-spacing:0;white-space:normal;visibility:hidden;opacity:0;transition:opacity .12s}
+.info:hover>.tip,.info:focus>.tip{visibility:visible;opacity:1}
+
 /* ---------- MISC ---------- */
 .flex-end{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
 .hidden{display:none}
@@ -828,7 +852,7 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
 
 <div class="content hidden" id="content-library">
   <div class="card">
-    <div class="card-title">Exercise Library</div>
+    <div class="card-title card-title--hero">Exercise Library</div>
     <div class="search-bar">
       <input type="text" id="lib-search" placeholder="Search by exercise name or description..." oninput="filterLibrary()">
     </div>
@@ -839,17 +863,12 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
 <div class="content hidden" id="content-exercises">
   <div id="ex-builder">
     <div class="card">
-      <div class="card-title">Exercise Sheet Builder</div>
+      <div class="card-title">Exercise Sheet Builder<span class="info" tabindex="0" role="tooltip" aria-label="Red border: mobility-focused suggestion. Blue border: stability-focused (hypermobility). OA: may stress joints. Click any exercise to toggle it.">i<span class="tip">Red border: mobility-focused suggestion. Blue border: stability-focused (hypermobility). OA: may stress joints. Click any exercise to toggle it.</span></span></div>
       <div class="form-row">
         <div class="form-group"><label>Employee Name</label><input type="text" id="ex-emp-name" placeholder="Enter name"></div>
         <div class="form-group"><label>Date</label><input type="date" id="ex-date"></div>
         <div class="form-group"><label>Provider / Clinician</label><input type="text" id="ex-provider" value="ATI Worksite Solutions"></div>
       </div>
-      <p style="font-size:.86rem;color:var(--tx2);margin-top:4px">
-        <span style="color:rgb(var(--accent));font-weight:700">Red border</span> = mobility-focused suggestion &nbsp;|&nbsp;
-        <span style="color:rgb(var(--hyper));font-weight:700">Blue border</span> = stability-focused (hypermobility) &nbsp;|&nbsp;
-        <span style="color:rgb(var(--hot));font-weight:700">⚠ OA</span> = may stress joints. Click any exercise to toggle.
-      </p>
       <div class="oa-summary" id="oa-summary-ex">
         <span style="font-size:22px">⚠</span>
         <span>Osteoarthritis present — exercises marked ⚠ OA may stress knee or hip joints. Prioritize low-impact options.</span>
@@ -862,7 +881,11 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
     </div>
     <div id="conflict-notice"></div>
     <div id="ex-categories"></div>
-    <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px">
+    <!-- The second set of actions. Owner, 2026-09-17: two identical rows with
+         nothing between them "looks unprofessional". The row at the top is
+         always there; this one appears only once exercises are selected, so
+         there is something to act on at the bottom of a long list. -->
+    <div id="ex-actions-bottom" style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px" hidden>
       <button class="btn btn-outline" onclick="resetToSuggestions()">Start Over</button>
       <button class="btn btn-outline" onclick="clearSelections()">Clear All</button>
       <button class="btn btn-red" onclick="buildPrintSheet()">Preview Print Sheet</button>
@@ -1965,6 +1988,12 @@ function buildExerciseUI(){
     }
   }
   const cats=['lunge','sld','shoulder','trunk','cervical'].map(key=>({key,data:{label:EXERCISES[key].label,exercises:CAT_EXERCISES[key]}}));
+  /* The bottom action row appears only once something is selected. Owner,
+     2026-09-17: two identical rows stacked with nothing between them "looks
+     unprofessional" -- and he is right that a second set earns its place only
+     when there is a long list above it to have scrolled past. */
+  const bottomActions=document.getElementById('ex-actions-bottom');
+  if(bottomActions)bottomActions.hidden=!Object.keys(selectedExercises).length;
   document.getElementById('ex-categories').innerHTML=cats.map(({key,data})=>{
     const isHyper=hyperSuggestedKeys[key];
     const isMobility=suggestedKeys[key];
