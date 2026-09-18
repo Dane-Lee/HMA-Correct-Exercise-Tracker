@@ -314,7 +314,7 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
    whatever colour glyph the device ships and that is not a palette colour.
    The icon shows the mode you would switch TO, which is what the old word did. */
 .header .dark-toggle{background:rgb(255 255 255 / .12);color:#fff;border:1px solid rgb(255 255 255 / .35);
-  border-radius:var(--r-pill);width:42px;height:42px;padding:0;margin-left:auto;
+  border-radius:var(--r-pill);width:38px;height:38px;padding:0;margin-left:auto;
   display:inline-flex;align-items:center;justify-content:center;font-family:inherit}
 .header .dark-toggle:hover{background:rgb(255 255 255 / .22)}
 .header .dark-toggle svg{display:block}
@@ -365,8 +365,8 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
   font-size:.86rem;resize:vertical;min-height:70px;background:var(--panel);color:var(--tx);
   transition:border-color .2s;font-family:inherit}
 .notes-area:focus{outline:none;border-color:rgb(var(--accent))}
-.search-bar{display:flex;gap:10px;margin-bottom:18px}
-.search-bar input{flex:1;padding:10px 14px;border:1px solid var(--rim);border-radius:var(--r-input);
+.search-bar{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+.search-bar input{flex:1;padding:10px 14px;min-height:40px;border:1px solid var(--rim);border-radius:var(--r-input);
   font-size:.91rem;background:var(--panel);color:var(--tx);transition:border-color .2s;
   font-family:inherit}
 .search-bar input:focus{outline:none;border-color:rgb(var(--accent))}
@@ -450,8 +450,21 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
 
 /* ---------- BUTTONS ----------
    The Manual's pills. Sentence case, not condensed uppercase. */
-.btn{padding:10px 18px;border:1px solid var(--tk-rim);border-radius:var(--r-pill);cursor:pointer;
-  font-size:.88rem;font-weight:600;text-transform:none;letter-spacing:0;
+/* ONE CONTROL-HEIGHT SCALE: 40 / 34, shared with the Overlay. Owner,
+   2026-09-18, asking for size and spacing balancing across every app.
+
+   Measured first: the Records screen was rendering FOUR heights for what is
+   nominally the same button -- 29px, 38px, 42px and 46px. Three separate
+   causes, all of them invisible from reading one rule:
+     * two buttons carried hand-tuned inline `style="font-size;padding"`;
+     * "+ New Assessment" was not 46px by choice, it was stretching to the
+       search input beside it in a flex row;
+     * the theme toggle was a fixed 42px square answering to nothing.
+   Heights come from `min-height` now, and the search input is on the same
+   scale, so the button and the field it sits beside match by design rather
+   than by accident. */
+.btn{padding:10px 18px;min-height:40px;border:1px solid var(--tk-rim);border-radius:var(--r-pill);
+  cursor:pointer;font-size:.88rem;font-weight:600;text-transform:none;letter-spacing:0;
   transition:background .15s,opacity .15s;font-family:inherit;
   background:var(--tk-panel);color:var(--tx)}
 .btn:hover{background:var(--panel-hi)}
@@ -461,7 +474,7 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
 .btn-black:hover{background:rgb(var(--brand));opacity:.9}
 .btn-outline{background:var(--tk-panel);color:var(--tx);border:1px solid var(--tk-rim)}
 .btn-outline:hover{background:var(--panel-hi)}
-.btn-sm{padding:7px 14px;font-size:.82rem}
+.btn-sm{padding:7px 14px;min-height:38px;font-size:.82rem}
 .btn-green{background:rgb(var(--ok));color:#fff;border-color:transparent}
 .btn-green:hover{background:rgb(var(--ok));opacity:.9}
 .btn:disabled,.btn[disabled]{opacity:.45;cursor:not-allowed}
@@ -767,8 +780,8 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
       <button class="btn btn-red btn-sm" onclick="showTab('new')">+ New Assessment</button>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin:-10px 0 14px">
-      <button class="btn btn-outline btn-sm" onclick="copyRecords(event)" title="Copy all records as JSON to clipboard" style="font-size:.73rem;padding:4px 12px">Copy JSON</button>
-      <button class="btn btn-outline btn-sm" onclick="togglePastePanel()" title="Import records by pasting JSON text. Records you already have are updated with the new scores; your exercise plan work is kept." style="font-size:.73rem;padding:4px 12px">Paste JSON</button>
+      <button class="btn btn-outline btn-sm" onclick="copyRecords(event)" title="Copy all records as JSON to clipboard">Copy JSON</button>
+      <button class="btn btn-outline btn-sm" onclick="togglePastePanel()" title="Import records by pasting JSON text. Records you already have are updated with the new scores; your exercise plan work is kept.">Paste JSON</button>
     </div>
     <div id="paste-import-panel" class="hidden">
       <div class="section-divider" style="margin:0 0 8px">Paste JSON to Import</div>
