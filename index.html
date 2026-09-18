@@ -243,7 +243,7 @@
 :root{
   --tx:  rgb(var(--ink));
   --tx2: rgb(var(--ink) / .68);
-  --tx3: rgb(var(--ink) / .46);
+  --tx3: rgb(var(--ink) / .62);
   --size-base: 22px;       /* the Tracker's own; owner, 2026-09-06 */
   --tk-wide: 1440px;       /* the records table is nine columns at 22px */
 }
@@ -287,8 +287,12 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
   display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px}
 /* Three columns with equal outer tracks, so the title is centred on the HEADER
    rather than on what the mark and the toggle leave over. Owner, 2026-09-17. */
+.header{border-color:rgb(255 255 255 / .20)}
 .header-logo{justify-self:start}
-.header h1{grid-column:2;text-align:center}
+.header-title{grid-column:2;text-align:center}
+.header h1{margin:0}
+.header-sub{margin:2px 0 0;font-family:var(--font-sub);font-size:.74rem;font-weight:600;
+  letter-spacing:.08em;text-transform:uppercase;color:rgb(255 255 255 / .72)}
 .header .dark-toggle{grid-column:3;justify-self:end;margin-left:0}
 /* THE WHITE PLATE IS GONE. Brand Guide §1.5/§1.6: on dark backgrounds use the
    1/C WHITE REVERSE logomark so the negative space of the APEX lets the ground
@@ -434,19 +438,6 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
   margin-bottom:14px;font-size:.77rem;font-weight:700;color:rgb(var(--hyper));
   text-transform:uppercase;letter-spacing:.06em}
 .hyper-summary.visible{display:flex;align-items:center;gap:10px}
-/* Osteoarthritis is orange, everywhere in the estate — never the same colour as
-   hypermobility, so a colour never means two things across two apps. */
-.oa-summary{display:none;background:rgb(var(--hot-tint));border:1px solid rgb(var(--hot));
-  border-left:4px solid rgb(var(--hot));border-radius:var(--r-input);padding:10px 18px;
-  margin-bottom:14px;font-size:.77rem;font-weight:700;color:rgb(var(--hot));
-  text-transform:uppercase;letter-spacing:.06em}
-.oa-summary.visible{display:flex;align-items:center;gap:10px}
-.oa-caution-flag{display:inline-block;background:rgb(var(--hot-tint));color:rgb(var(--hot));
-  border:1px solid rgb(var(--hot) / .45);border-radius:var(--r-pill);font-size:.55rem;
-  font-weight:700;padding:1px 8px;margin-left:5px;vertical-align:middle;white-space:nowrap}
-.ex-item.oa-caution{background:rgb(var(--hot) / .07)}
-.ex-item.oa-caution:hover{background:rgb(var(--hot) / .14)}
-.ex-item.oa-caution.selected{background:rgb(var(--accent) / .12)}
 
 /* ---------- BUTTONS ----------
    The Manual's pills. Sentence case, not condensed uppercase. */
@@ -483,9 +474,23 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
    which is a different kind of act from editing a record or writing a file --
    so they get one shared look and sit apart from the actions around them.
    Blue, because it is a destination and not a severity. */
-.btn-handoff{background:rgb(var(--hyper) / .12);color:rgb(var(--hyper));
-  border:1px solid rgb(var(--hyper) / .4);font-weight:600}
-.btn-handoff:hover{background:rgb(var(--hyper) / .2)}
+/* Owner, 2026-09-18: "I can't see the '-> Overlay' and '-> Cadence' buttons in
+   Tracker at all when using Dark mode... It's as if they literally disappear."
+
+   They did. PMS 294 (--hyper, #002F6C) is a DARK navy -- it is an ink for white
+   paper, and this rule painted it as text over a 12% navy wash on a near-black
+   panel. Roughly 1.3:1. Not dim: invisible.
+
+   The fix stays inside the brand rather than reaching outside it. tokens.css
+   already ships --hyper-tint (#D6E2F2) for exactly this: the same PMS 294
+   family at the value a dark ground needs. So the ink swaps by theme -- tint on
+   dark, navy on light -- and the wash carries the colour in both. */
+.btn-handoff{background:rgb(var(--hyper) / .24);color:rgb(var(--hyper-tint));
+  border:1px solid rgb(var(--hyper-tint) / .45);font-weight:600}
+.btn-handoff:hover{background:rgb(var(--hyper) / .34)}
+:root[data-theme="light"] .btn-handoff{background:rgb(var(--hyper) / .10);
+  color:rgb(var(--hyper));border-color:rgb(var(--hyper) / .40)}
+:root[data-theme="light"] .btn-handoff:hover{background:rgb(var(--hyper) / .18)}
 /* A record with no finalized program cannot go to Cadence. Shown disabled
    rather than hidden: an absent button reads as "broken" exactly as often as
    "not ready yet", and the tooltip says which. */
@@ -512,7 +517,7 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
 .emp-table th:last-child{border-top-right-radius:var(--r-input)}
 .emp-table th.sortable{cursor:pointer;user-select:none}
 .emp-table th.sortable:hover{background:var(--panel-hi);color:var(--tx)}
-.emp-table th.sort-active{background:rgb(var(--accent) / .16);color:rgb(var(--accent))}
+.emp-table th.sort-active{background:rgb(var(--accent) / .16);color:rgb(var(--ink));font-weight:700}
 .sort-ind{font-size:.55rem;margin-left:3px;opacity:.9}
 .emp-table td{padding:12px 15px;border-bottom:1px solid var(--rim)}
 .emp-table tbody tr:nth-child(even) td{background:rgb(var(--ink) / .028)}
@@ -525,10 +530,11 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
 .badge-mod{background:rgb(var(--warn-tint));color:#7a5b00}
 .badge-low{background:rgb(var(--ok-tint));color:rgb(var(--ok))}
 .badge-hyper{background:rgb(var(--hyper-tint));color:rgb(var(--hyper))}
-/* Osteoarthritis on a record row. Its own name rather than an inline pair
-   repeated twice, so the OA colour is decided in exactly one place -- the same
-   rule --hot already carries in the summary banner and the builder flag. */
-.badge-oa{background:rgb(var(--hot-tint));color:rgb(var(--hot))}
+/* A warning badge on a record row. Named for what it does, not for what it used
+   to carry: this was `.badge-oa` until osteoarthritis left the estate on
+   2026-09-18, and the only thing wearing it now is the missing-badge-number
+   warning, which was never an OA concern. */
+.badge-warn{background:rgb(var(--hot-tint));color:rgb(var(--hot))}
 /* Initial vs re-assessment. Was an inline ternary between two literal greys,
    which meant the chip's TEXT colour was whatever the row inherited -- fine on
    a light page, unreadable the moment the ground under it became a tint. The
@@ -687,7 +693,6 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
    DESIGN-SYSTEM-PLAN rule 6. The four dark-theme overrides at the very end are
    the sole exception and carry their own note.
    ============================================================================ */
-.print-oa-note{background:#fff8e8;border:1px solid #e65100;border-radius:4px;padding:6px 10px;margin-bottom:10px;font-size:14px;color:#bf360c;font-weight:700}
 .print-preview{background:#fff;border:1px solid #ccc;padding:20px;max-width:760px;margin:0 auto;font-family:'Bitter',Georgia,serif}
 .print-header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:3px solid #e4002b}
 .print-logo-box{background:#1a1a1a;color:#fff;padding:6px 14px;font-weight:900;font-size:28px;letter-spacing:2px}
@@ -752,7 +757,13 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
 <div class="app">
 <div class="header">
   <div class="header-logo"><img src="/images/ati-logo-reverse.png" alt="ATI Worksite Solutions"></div>
-  <h1>Human Movement Assessment</h1>
+  <!-- Owner, 2026-09-18: "That title doesn't tell us what it does or helps
+       with." The name stays the title; what it does is the subtitle, which is
+       what DESIGN-RULES rule 2 allows a screen to carry beside its title. -->
+  <div class="header-title">
+    <h1>Human Movement Assessment</h1>
+    <p class="header-sub">Screening, Scoring &amp; Corrective Exercise Programs</p>
+  </div>
   <button class="btn btn-sm dark-toggle" id="dark-toggle" onclick="toggleDark()" aria-label="Switch to dark mode" title="Dark mode"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
 </div>
 <div class="tabs no-print">
@@ -825,11 +836,6 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
     </div>
     <div class="form-row">
       <div class="form-group" style="max-width:200px"><label>Assessment Type</label><select id="f-type"><option value="Initial">Initial</option><option value="Retest">Retest</option></select></div>
-      <div class="form-group" style="max-width:280px"><label>Client Flags</label>
-        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:.86rem;padding:6px 0;color:var(--tx);font-weight:400;text-transform:none;letter-spacing:0">
-          <input type="checkbox" id="f-oa"> <span>Osteoarthritis (OA)</span>
-        </label>
-      </div>
     </div>
     <div class="section-divider">Movement Scores</div>
     <div class="pain-flag" id="pain-flag"><span style="font-size:25px">⚑</span><span>Pain reported — Physical Assessment auto-opened. Corrective Plan locked to No per protocol.</span></div>
@@ -876,15 +882,11 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
 <div class="content hidden" id="content-exercises">
   <div id="ex-builder">
     <div class="card">
-      <div class="card-title">Exercise Sheet Builder<span class="info" tabindex="0" role="tooltip" aria-label="Red border: mobility-focused suggestion. Blue border: stability-focused (hypermobility). OA: may stress joints. Click any exercise to toggle it.">i<span class="tip">Red border: mobility-focused suggestion. Blue border: stability-focused (hypermobility). OA: may stress joints. Click any exercise to toggle it.</span></span></div>
+      <div class="card-title">Exercise Sheet Builder<span class="info" tabindex="0" role="tooltip" aria-label="Red border: mobility-focused suggestion. Blue border: stability-focused (hypermobility). Click any exercise to toggle it.">i<span class="tip">Red border: mobility-focused suggestion. Blue border: stability-focused (hypermobility). Click any exercise to toggle it.</span></span></div>
       <div class="form-row">
         <div class="form-group"><label>Employee Name</label><input type="text" id="ex-emp-name" placeholder="Enter name"></div>
         <div class="form-group"><label>Date</label><input type="date" id="ex-date"></div>
         <div class="form-group"><label>Provider / Clinician</label><input type="text" id="ex-provider" value="ATI Worksite Solutions"></div>
-      </div>
-      <div class="oa-summary" id="oa-summary-ex">
-        <span style="font-size:22px">⚠</span>
-        <span>Osteoarthritis present — exercises marked ⚠ OA may stress knee or hip joints. Prioritize low-impact options.</span>
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px">
@@ -1374,7 +1376,11 @@ const CAT_EXERCISES={
   trunk:[...EXERCISES.trunk.exercises,...CORE_EX],
   cervical:EXERCISES.cervical.exercises
 };
-const OA_CAUTION=new Set(['l3','l4','l5','l7','l8','s1','s2','b3','b4','b6','b8','b9','co5','co7']);
+/* OSTEOARTHRITIS IS GONE FROM THE ESTATE (owner, 2026-09-18). It was his call
+   rather than ATI's, and he withdrew it: "If they have that, then they likely
+   have pain. We already note the pain according to the HMA protocol." Anything
+   worth saying about a joint history goes in the assessment notes, in his own
+   words, which is where a clinical aside belongs. */
 const EX_TYPE={
   l1:'flexibility',l2:'flexibility',l3:'strength',l4:'static stabilization',l5:'dynamic stabilization',l6:'dynamic stabilization',l7:'strength',l8:'dynamic stabilization',l9:'static stabilization',
   s1:'flexibility',s2:'flexibility',s3:'strength',s4:'dynamic stabilization',s5:'static stabilization',s6:'strength',s7:'dynamic stabilization',s9:'flexibility',
@@ -1485,7 +1491,7 @@ function faultLabel(key,id){
 }
 const QUALITY_TYPES=['flexibility','mobility','static stabilization','dynamic stabilization','strength'];
 const QUALITY_LABELS={'flexibility':'Flexibility','mobility':'Mobility','static stabilization':'Static Stabilization','dynamic stabilization':'Dynamic Stabilization','strength':'Strength'};
-let records=[], editingId=null, restoredProgram=false, selectedExercises={}, customSetsReps={}, suggestedKeys={}, hyperSuggestedKeys={}, currentEmpForSheet=null, oaActive=false, libraryBuilt=false, _pendingSheet=null;
+let records=[], editingId=null, restoredProgram=false, selectedExercises={}, customSetsReps={}, suggestedKeys={}, hyperSuggestedKeys={}, currentEmpForSheet=null, libraryBuilt=false, _pendingSheet=null;
 // Why each movement was suggested what it was — surfaced to the EIS so the
 // suggestion is reviewable rather than opaque. Keyed by movement.
 let suggestionNotes={};
@@ -1637,7 +1643,7 @@ function getFormData(){
     company:document.getElementById('f-company').value.trim(),dept:document.getElementById('f-dept').value.trim(),
     shift:document.getElementById('f-shift').value,date:document.getElementById('f-date').value,
     location:document.getElementById('f-location').value.trim(),type:document.getElementById('f-type').value,
-    scores:snap,total:calcTotal(snap),hypermobile:getHyperSnapshot(),hasOA:document.getElementById('f-oa').checked,
+    scores:snap,total:calcTotal(snap),hypermobile:getHyperSnapshot(),
     notes:document.getElementById('f-notes').value.trim(),
     followup:document.getElementById('f-followup').value,retest:document.getElementById('f-retest').value,
     plan:document.getElementById('f-plan').value,pa:document.getElementById('f-pa').value,
@@ -1672,7 +1678,6 @@ function clearForm(){
   const ps=document.getElementById('f-plan'),pa=document.getElementById('f-pa');
   ps.value='No';ps.disabled=false;ps.className='';pa.value='No';pa.disabled=false;pa.className='';
   document.getElementById('f-date').valueAsDate=new Date();
-  document.getElementById('f-oa').checked=false;
   document.getElementById('pain-flag').classList.remove('visible');
   document.getElementById('hyper-summary').classList.remove('visible');
   MOVEMENTS.forEach(m=>{
@@ -1706,7 +1711,6 @@ function editRecord(id){
   document.getElementById('f-location').value=r.location||'';document.getElementById('f-type').value=r.type;
   document.getElementById('f-notes').value=r.notes||'';document.getElementById('f-followup').value=r.followup||'6';
   document.getElementById('f-retest').value=r.retest||'4';
-  document.getElementById('f-oa').checked=r.hasOA||false;
   const ps=document.getElementById('f-plan'),pa=document.getElementById('f-pa');
   ps.value=r.plan||'No';ps.disabled=false;ps.className='';
   pa.value=r.pa||'No';pa.disabled=false;pa.className='';
@@ -1770,8 +1774,8 @@ function sortRecords(arr){
     else if(sortCol==='type'){av=a.type||'';bv=b.type||'';}
     else if(sortCol==='score'||sortCol==='risk'){av=a.total??0;bv=b.total??0;}
     else if(sortCol==='flags'){
-      av=(a.hypermobile?MOVEMENTS.filter(m=>a.hypermobile[m.key]).length:0)+(a.hasOA?1:0);
-      bv=(b.hypermobile?MOVEMENTS.filter(m=>b.hypermobile[m.key]).length:0)+(b.hasOA?1:0);
+      av=(a.hypermobile?MOVEMENTS.filter(m=>a.hypermobile[m.key]).length:0);
+      bv=(b.hypermobile?MOVEMENTS.filter(m=>b.hypermobile[m.key]).length:0);
     }else if(sortCol==='followup'){
       av=a.followup&&a.date?new Date(a.date).getTime()+parseInt(a.followup)*7*24*3600*1000:0;
       bv=b.followup&&b.date?new Date(b.date).getTime()+parseInt(b.followup)*7*24*3600*1000:0;
@@ -1793,11 +1797,10 @@ function renderTable(){
     const fu=r.followup&&r.date?getFuDate(r.date,parseInt(r.followup)):'—';
     const hyperMvmts=r.hypermobile?MOVEMENTS.filter(m=>r.hypermobile[m.key]).map(m=>m.label.split(' ')[0]):[];
     const hyperBadge=hyperMvmts.length?`<span class="badge badge-hyper" title="Hypermobility: ${hyperMvmts.join(', ')}">⬡ ${hyperMvmts.length}</span>`:'';
-    const oaBadge=r.hasOA?`<span class="badge badge-oa" style="margin-left:3px">⚠ OA</span>`:'';
-    const flagsCell=(hyperBadge||oaBadge)?(hyperBadge+oaBadge):'—';
+    const flagsCell=hyperBadge||'—';
     // A plan cannot reach Cadence without a badge #, so flag its absence here --
     // while the gap is still cheap to fix -- rather than at plan issue.
-    const noBadge=`<span class="badge badge-oa" style="font-size:.59rem;margin-left:5px" title="No badge number. Required before a plan can be sent to Cadence.">no badge #</span>`;
+    const noBadge=`<span class="badge badge-warn" style="font-size:.59rem;margin-left:5px" title="No badge number. Required before a plan can be sent to Cadence.">no badge #</span>`;
     const sub=[r.badge?'#'+r.badge:'',r.dept||''].filter(Boolean).join(' · ');
     return`<tr><td><strong>${r.name}</strong>${r.badge?'':noBadge}<br><span style="font-size:.68rem;color:var(--tx2)">${sub}</span></td>
       <td>${r.date}</td><td style="font-size:18px">${r.shift||'—'} Shift</td>
@@ -1925,7 +1928,7 @@ function openExerciseBuilder(rec){
   currentEmpForSheet=rec;
   document.getElementById('ex-emp-name').value=rec?rec.name:'';
   document.getElementById('ex-date').value=rec?rec.date:new Date().toISOString().split('T')[0];
-  selectedExercises={};customSetsReps={};suggestedKeys={};hyperSuggestedKeys={};suggestionNotes={};oaActive=rec?.hasOA||false;
+  selectedExercises={};customSetsReps={};suggestedKeys={};hyperSuggestedKeys={};suggestionNotes={};
   restoredProgram=false;
 
   // A finalized program is the EIS's clinical decision. Once one exists, reopening
@@ -1980,8 +1983,6 @@ function imgTag(id,forPrint=false){
 }
 
 function buildExerciseUI(){
-  const oaEl=document.getElementById('oa-summary-ex');
-  if(oaEl)oaEl.classList.toggle('visible',oaActive);
   const conflictEl=document.getElementById('conflict-notice');
   if(conflictEl){
     if(resolvedConflicts.length){
@@ -2038,13 +2039,12 @@ function buildExerciseUI(){
       </div>
       ${why}
       <div class="ex-grid">${data.exercises.map(ex=>{
-        const isCaution=oaActive&&OA_CAUTION.has(ex.id);
         const setsVal=(customSetsReps[ex.id]!==undefined?customSetsReps[ex.id]:ex.sets).replace(/"/g,'&quot;');
         const setsPlaceholder=ex.sets.replace(/"/g,'&quot;');
-        return`<div class="ex-item ${selectedExercises[ex.id]?'selected':''} ${isCaution?'oa-caution':''}" onclick="toggleEx('${ex.id}')" id="exitem-${ex.id}">
+        return`<div class="ex-item ${selectedExercises[ex.id]?'selected':''}" onclick="toggleEx('${ex.id}')" id="exitem-${ex.id}">
           <div class="ex-check">${selectedExercises[ex.id]?'✓':''}</div>
           ${imgTag(ex.id)}
-          <div style="flex:1;min-width:0">${ex.name}${isCaution?'<span class="oa-caution-flag">⚠ OA</span>':''}${exTypeBadge(ex.id,true)}</div>
+          <div style="flex:1;min-width:0">${ex.name}${exTypeBadge(ex.id,true)}</div>
           <div class="sets-reps-edit" onclick="event.stopPropagation()">
             <span class="sets-reps-label">Sets/Reps:</span>
             <input class="sets-reps-input" value="${setsVal}" placeholder="${setsPlaceholder}" oninput="setSetsReps('${ex.id}',this.value)" onclick="event.stopPropagation()">
@@ -2301,7 +2301,6 @@ function _renderPrintSheet(chosen,sched){
   const rec=currentEmpForSheet;
   const hyperMvmts=rec?.hypermobile?MOVEMENTS.filter(m=>rec.hypermobile[m.key]).map(m=>m.label):[];
   const hyperNote=hyperMvmts.length?`<div class="print-hyper-note">⬡ Hypermobility noted in: ${hyperMvmts.join(', ')} — exercises selected for stability focus in flagged areas.</div>`:'';
-  const oaNote=rec?.hasOA?`<div class="print-oa-note">⚠ Osteoarthritis present — use pain-free range of motion only. Monitor joint comfort throughout all exercises.</div>`:'';
   let rhDate='';{const p=(date||'').split('-');if(p.length===3)rhDate=`${parseInt(p[1])}-${parseInt(p[2])}-${p[0].slice(2)}`;}
   const runHead=`${name}${rhDate?' &nbsp;·&nbsp; '+rhDate:''}`;
   document.getElementById('print-sheet').innerHTML=`
@@ -2321,7 +2320,7 @@ function _renderPrintSheet(chosen,sched){
       <div style="grid-column:span 4;text-align:center;padding:4px 0;font-size:13px;color:#444"><strong>Est. Session Time (longest day):</strong> ~${peakMin} min &nbsp;|&nbsp; <strong>Exercises:</strong> ${chosen.length}</div>
       ${rec?`<div style="grid-column:span 4;text-align:center;padding:4px 0"><span style="display:inline-block;border-bottom:2px solid #e4002b;padding:0 24px 4px"><div class="print-info-label" style="font-size:13px">HMA Score</div><span style="font-size:32px;font-weight:900;font-family:'Barlow Condensed',sans-serif;color:#000">${rec.total}<span style="font-size:18px;font-weight:400;color:#999">/15</span></span></span></div>`:''}
     </div>
-    ${hyperNote}${oaNote}
+    ${hyperNote}
     ${(()=>{
       const PLABELS={lunge:'Lunge',sld:'Single Leg Dip',shoulder:'Shoulder Reach',trunk:'Trunk Rotation',cervical:'Cervical'};
       const PCATS=['lunge','sld','shoulder','trunk','cervical'].map(key=>({key,label:PLABELS[key],ids:new Set(CAT_EXERCISES[key].map(e=>e.id))}));
@@ -2405,7 +2404,7 @@ function exportRecords(){
 // duplicate: refresh what the assessment owns and keep the work done in here.
 
 // Owned by the assessment - always refreshed on re-import.
-const IMPORT_SCORE_FIELDS=['scores','total','hypermobile','hasOA'];
+const IMPORT_SCORE_FIELDS=['scores','total','hypermobile'];
 // Employee details - refreshed only when the incoming value is non-blank, so an
 // import can never blank out something that was typed in here.
 const IMPORT_DETAIL_FIELDS=['badge','fname','lname','name','company','dept','shift','location','date','type'];
@@ -2437,7 +2436,7 @@ function applyImportedRecords(imported){
   const parts=[];
   if(additions.length)parts.push(`add ${additions.length} new record(s)`);
   if(updates.length)parts.push(`update ${updates.length} existing record(s)`);
-  const detail=updates.length?'\n\nUpdates refresh scores, pain, hypermobility, OA and employee details.\nYour exercise plan, observations, quality focus, follow-up and re-test dates are kept.':'';
+  const detail=updates.length?'\n\nUpdates refresh scores, pain, hypermobility and employee details.\nYour exercise plan, observations, quality focus, follow-up and re-test dates are kept.':'';
   if(!confirm(`This import will ${parts.join(' and ')}.${detail}\n\nContinue?`))return false;
   updates.forEach(r=>{const i=indexById.get(r.id);records[i]=mergeImportedRecord(records[i],r);});
   records=[...additions.map(stampImportedNotes),...records];

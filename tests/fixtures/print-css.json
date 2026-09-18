@@ -1,5 +1,4 @@
 {
-  ".print-oa-note": "background:#fff8e8;border:1px solid #e65100;border-radius:4px;padding:6px 10px;margin-bottom:10px;font-size:14px;color:#bf360c;font-weight:700",
   ".print-preview": "background:#fff;border:1px solid #ccc;padding:20px;max-width:760px;margin:0 auto;font-family:'Bitter',Georgia,serif",
   ".print-header": "display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:3px solid #e4002b",
   ".print-logo-box": "background:#1a1a1a;color:#fff;padding:6px 14px;font-weight:900;font-size:28px;letter-spacing:2px",

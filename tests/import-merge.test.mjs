@@ -37,7 +37,7 @@ function trackerAuthored(over = {}) {
     company: "Navarre", dept: "Weld", shift: "2nd", location: "Line 3", type: "Initial",
     date: "2026-07-23",
     scores: { lunge: [{ val: 2, pain: false }, { val: 3, pain: false }] },
-    total: 8, hypermobile: { lunge: false }, hasOA: false,
+    total: 8, hypermobile: { lunge: false },
     notes: "lunge: knee valgus",
     _importedNotes: "lunge: knee valgus",
     // the work done inside the Tracker
@@ -61,7 +61,7 @@ function reExport(over = {}) {
     company: "Navarre", dept: "", shift: "", location: "", type: "",
     date: "2026-07-23",
     scores: { lunge: [{ val: 1, pain: true }, { val: 3, pain: false }] },
-    total: 6, hypermobile: { lunge: true }, hasOA: true,
+    total: 6, hypermobile: { lunge: true },
     notes: "lunge: knee valgus",
     plan: "", pa: "", followup: "", retest: "",
     observations: { lunge: {} }, qualityFocus: { lunge: [] },
@@ -74,7 +74,6 @@ let merged = api.merge(trackerAuthored(), reExport());
 assert.deepEqual(merged.scores.lunge[0], { val: 1, pain: true }, "scores must refresh");
 assert.equal(merged.total, 6, "total must refresh");
 assert.equal(merged.hypermobile.lunge, true, "hypermobility must refresh");
-assert.equal(merged.hasOA, true, "OA must refresh");
 
 // 2. Tracker-authored work survives untouched.
 assert.equal(merged.plan, "Yes");

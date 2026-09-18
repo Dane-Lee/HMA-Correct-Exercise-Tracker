@@ -17,7 +17,7 @@ import { loadLibrary, allExercises, imagesDir } from './extract.js';
 const MAPS = ['EX_TYPE', 'EX_DURATION', 'EXERCISE_TARGETS', 'EXERCISE_CATEGORY'];
 const lib = loadLibrary([
   'DEFAULT_IMAGES', 'EXERCISES', 'BALANCE_EX', 'CORE_EX', 'CAT_EXERCISES',
-  'OA_CAUTION', ...MAPS,
+  ...MAPS,
 ]);
 const ex = allExercises(lib);
 const ids = Object.keys(ex);
@@ -126,10 +126,10 @@ test('both brand marks are on disk and each is used where the guide says', () =>
   assert.equal(printUses, 2, 'both printed sheets must carry the POSITIVE lockup');
 });
 
-test('OA_CAUTION only lists exercises that exist', () => {
-  const ghosts = [...lib.OA_CAUTION].filter((id) => !(id in ex));
-  assert.deepEqual(ghosts, []);
-});
+/* `OA_CAUTION` used to be asserted here -- a set of ids whose exercises might
+   stress an arthritic knee or hip. Osteoarthritis left the estate on 2026-09-18
+   (owner: it was his call, not ATI's, and pain already covers it), so the set is
+   gone and there is nothing left to check for ghosts. */
 
 /* Cadence resolves an exercise's image against its own assets by bare filename,
    so a path or an extension it cannot render is a broken image on an employee's

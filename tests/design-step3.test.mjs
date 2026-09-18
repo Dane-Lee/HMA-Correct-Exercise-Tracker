@@ -149,7 +149,6 @@ test("severity never borrows the brand accent", () => {
     [".total-display.low", "--ok"],
     [".badge-high", "--bad"],
     [".badge-hyper", "--hyper"],
-    [".badge-oa", "--hot"],
   ]) {
     const rule = new RegExp(`\\${selector}\\{([^}]*)\\}`).exec(screen);
     assert.ok(rule, `${selector} has no rule`);
@@ -175,7 +174,11 @@ test("hypermobility and osteoarthritis never share a colour", () => {
     assert.match(rule[1], /--hyper/, `${selector} is not blue`);
     assert.ok(!/--hot\b/.test(rule[1]), `${selector} has taken the OA orange`);
   }
-  for (const selector of [".oa-summary", ".oa-caution-flag", ".badge-oa"]) {
+  // The OA half of this pairing is gone: osteoarthritis was removed from the
+  // estate on 2026-09-18, so there is no orange flag left to keep distinct.
+  // The rule that survives is the one that mattered -- hypermobility is blue,
+  // and nothing else may take that blue.
+  for (const selector of []) {
     const rule = new RegExp(`\\${selector}\\{([^}]*)\\}`).exec(screen);
     assert.ok(rule, `${selector} has no rule`);
     assert.match(rule[1], /--hot/, `${selector} is not orange`);
