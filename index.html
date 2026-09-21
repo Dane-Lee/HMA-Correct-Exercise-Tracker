@@ -2121,8 +2121,8 @@ function showVolumeWarning(chosen,sched){
   if(!el){el=document.createElement('div');el.id='vol-warning-overlay';document.body.appendChild(el);}
   el.style.cssText='position:fixed;inset:0;background:rgb(var(--brand) / .55);z-index:9999;display:flex;align-items:center;justify-content:center;';
   el.innerHTML=`<div style="background:rgb(var(--surface));color:var(--tx);border:1px solid var(--rim);border-radius:var(--r-card);padding:28px 32px;max-width:460px;width:90%;box-shadow:var(--shadow-card);">
-    <div style="font-size:.82rem;font-weight:700;color:rgb(var(--accent));margin-bottom:8px;">⚠ ${dayLabel}</div>
-    <p style="color:var(--tx2);margin:0 0 16px;font-size:.64rem;">The heaviest is <strong>Day ${worst} (~${worstMin} min)</strong> — about <strong>${over} min</strong> over. Auto-Adjust redistributes across the week and trims lowest-priority work per day; every exercise stays in the plan.</p>
+    <div style="font-size:.82rem;font-weight:700;color:rgb(var(--accent));margin-bottom:8px;">⚠ ${dayLabel}<span class="info" tabindex="0" role="tooltip" aria-label="Auto-Adjust redistributes across the week and trims lowest-priority work per day; every exercise stays in the plan.">i<span class="tip">Auto-Adjust redistributes across the week and trims lowest-priority work per day; every exercise stays in the plan.</span></span></div>
+    <p role="alert" style="color:var(--tx2);margin:0 0 16px;font-size:.64rem;">The heaviest is <strong>Day ${worst} (~${worstMin} min)</strong> — about <strong>${over} min</strong> over.</p>
     <div style="font-size:.5rem;font-weight:700;color:var(--tx3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;">Top time contributors — Day ${worst}</div>
     <div style="font-size:.59rem;margin-bottom:20px;">${listHtml}</div>
     <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
@@ -2252,7 +2252,7 @@ function _buildCalendarPage(chosen,sched){
   const maxDay=activeDays.length?Math.max(...activeDays):5;
   const restDays=[];for(let d=maxDay+1;d<=7;d++)restDays.push(d);
   const restNote=restDays.length?`<p style="margin:8px 0 0;font-size:13px;color:#888;text-align:center">Day${restDays.length>1?'s':''} ${restDays.join(' & ')} — Rest</p>`:'';
-  const unresolvedNote=sched.unresolved?`<p style="margin:8px 0 0;font-size:12px;color:#cc2200;text-align:center;font-weight:700">⚠ A day still exceeds 20 min after adjustment — manual review recommended.</p>`:'';
+  const unresolvedNote=sched.unresolved?`<p role="alert" style="margin:8px 0 0;font-size:12px;color:#cc2200;text-align:center;font-weight:700">⚠ A day still exceeds 20 min after adjustment — manual review recommended.</p>`:'';
   return`<div style="page-break-before:always">
     <div class="print-header"><div><img src="/images/ati-logo-positive.png" style="height:44px;width:auto"></div><div class="print-title">Weekly Exercise Schedule</div><div></div></div>
     <div class="cal-grid">${dayHtml}</div>
