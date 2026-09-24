@@ -550,8 +550,8 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
 .btn-handoff[disabled]:hover{background:var(--panel)}
 /* The hand-off group now sits on a card title rather than on a dark band, so its
    divider is the shared rim instead of white-on-black. */
-.handoff-group{display:flex;align-items:center;gap:6px;padding-left:12px;margin-left:6px;
-  border-left:1px solid var(--tk-rim)}
+.handoff-group{display:flex;align-items:center;justify-content:flex-end;gap:8px;
+  margin:10px 0 0}
 .handoff-label{font-family:inherit;font-size:.68rem;font-weight:700;letter-spacing:.06em;
   text-transform:uppercase;color:var(--tx2);white-space:nowrap}
 .row-handoff{display:inline-flex;align-items:center;gap:3px;padding-left:9px;margin-left:6px;
@@ -831,11 +831,14 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
       <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
         <button class="btn btn-sm btn-outline" onclick="exportRecords()" title="Download all records as a JSON file">↓ Export</button>
         <label class="btn btn-sm btn-outline" style="cursor:pointer" title="Load records from a JSON file. Records you already have are updated with the new scores; your exercise plan work is kept.">↑ Import<input type="file" id="import-input" accept=".json" style="display:none" onchange="importRecords(event)"></label>
-        <div class="handoff-group">
-          <span class="handoff-label">Send to</span>
-          <button class="btn btn-sm btn-handoff" id="send-overlay-btn" onclick="sendToOverlay(event)" title="Copy ALL records for the HMA Overlay job-risk tool, then paste them there. This sends the whole roster, not one employee.">Overlay — all records</button>
-        </div>
       </div>
+    </div>
+    <!-- Its own row, under Export/Import (owner, 2026-09-24). It sends the
+         WHOLE roster, not the selected record, so sharing a line with the
+         two per-file buttons read as a third file action. -->
+    <div class="handoff-group">
+      <span class="handoff-label">Send to</span>
+      <button class="btn btn-sm btn-handoff" id="send-overlay-btn" onclick="sendToOverlay(event)" title="Copy ALL records for the HMA Overlay job-risk tool, then paste them there. This sends the whole roster, not one employee.">Overlay — all records</button>
     </div>
     <div class="search-bar">
       <input type="text" id="search-input" placeholder="Search by name, company, or department..." oninput="renderTable()">
