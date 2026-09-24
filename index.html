@@ -550,11 +550,35 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
 .btn-handoff[disabled]:hover{background:var(--panel)}
 /* The hand-off group now sits on a card title rather than on a dark band, so its
    divider is the shared rim instead of white-on-black. */
-/* A full-width second row inside `.card-title`, right-aligned so it sits under
-   Export/Import. `flex-basis:100%` is what makes the wrap happen; the row
-   spacing is the title's own `gap`, so there is no margin to keep in sync. */
-.handoff-group{flex:0 0 100%;display:flex;align-items:center;justify-content:flex-end;
-  gap:8px;margin:0}
+/* THE RECORDS TITLE IS A GRID, not a wrapping flex row. Owner, 2026-09-24:
+   "move HMA Records down to split the difference spacially between Export /
+   Import and 'Send to Overlay - all records'".
+
+   A wrapping flex row cannot do that: "HMA Records" lives on the first line and
+   is centred against THAT line only. Two rows in a grid, with the title
+   spanning both and centred across them, is what "split the difference"
+   actually describes.
+
+   Scoped to this card. `.card-title` has three other users in this file which
+   are single-line headings and have no business becoming grids. */
+.card-title--records{
+  display:grid; grid-template-columns:1fr auto;
+  align-items:center; column-gap:12px; row-gap:10px;
+}
+/* Spanning both rows and centred against the pair. The larger size sits on the
+   span rather than the container so the buttons in column 2 keep their own. */
+.card-title--records>span:first-child{
+  grid-row:1 / span 2; align-self:center; font-size:1.6rem; line-height:1.15;
+}
+.card-title__actions{
+  grid-column:2; grid-row:1; justify-self:end;
+  display:flex; gap:8px; align-items:center;
+}
+/* Second row of column 2, under Export/Import and above the title's own
+   border-bottom -- see the note on the markup for why that matters. */
+.handoff-group{
+  grid-column:2; grid-row:2; justify-self:end;
+  display:flex; align-items:center; gap:8px; margin:0}
 .handoff-label{font-family:inherit;font-size:.68rem;font-weight:700;letter-spacing:.06em;
   text-transform:uppercase;color:var(--tx2);white-space:nowrap}
 .row-handoff{display:inline-flex;align-items:center;gap:3px;padding-left:9px;margin-left:6px;
@@ -829,9 +853,9 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
 
 <div class="content" id="content-records">
   <div class="card">
-    <div class="card-title" style="display:flex;align-items:center">
+    <div class="card-title card-title--records">
       <span>HMA Records</span>
-      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+      <div class="card-title__actions">
         <button class="btn btn-sm btn-outline" onclick="exportRecords()" title="Download all records as a JSON file">↓ Export</button>
         <label class="btn btn-sm btn-outline" style="cursor:pointer" title="Load records from a JSON file. Records you already have are updated with the new scores; your exercise plan work is kept.">↑ Import<input type="file" id="import-input" accept=".json" style="display:none" onchange="importRecords(event)"></label>
       </div>
