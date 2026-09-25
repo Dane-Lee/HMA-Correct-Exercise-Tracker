@@ -723,6 +723,27 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
    damage rather than as wrapping. There is room for them now that Actions
    wraps instead of forcing the table wider than the window. */
 .emp-table td:nth-child(2),.emp-table td:nth-child(3){white-space:nowrap}
+
+/* THE NAME IS THE CONTROL that sets the current employee (ONE-APP-PLAN phase
+   3). A button rather than a click handler on the cell, so it is reachable by
+   keyboard and announces itself -- but styled as the text it already was,
+   because the row is not the place to grow another five-button control. The
+   dotted underline is the only hint that it does something, and the title
+   attribute says what. */
+.emp-name{background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;cursor:pointer;
+  border-bottom:1px dotted rgb(var(--ink) / .45)}
+.emp-name:hover,.emp-name:focus-visible{color:rgb(var(--accent));border-bottom-color:rgb(var(--accent))}
+/* The current row. A left bar in ATI red, which is the same language the hover
+   state already uses on this table -- and a tint too faint to fight the risk
+   badges, which are the thing a reader is actually scanning for. */
+.emp-table tr.row-current td{background:rgb(var(--accent) / .07)}
+.emp-table tr.row-current td:first-child{border-left-color:rgb(var(--accent))}
+/* The current row's name stays INK. Red-on-red measured exactly 3.00 against
+   the 3.0 bar for large text once the row's own red tint was under it -- and
+   the row is already saying "current" twice, with the left bar and the tint.
+   A third red was the one that could not afford it. */
+.emp-table tr.row-current .emp-name{border-bottom-color:rgb(var(--accent));border-bottom-style:solid;
+  border-bottom-width:2px}
 .emp-table th:first-child{border-left:3px solid transparent;border-top-left-radius:var(--r-input)}
 .emp-table th:last-child{border-top-right-radius:var(--r-input)}
 .emp-table th.sortable{cursor:pointer;user-select:none}
@@ -1828,7 +1849,65 @@ let qualityFocus={lunge:[],sld:[],shoulder:[],trunk:[],cervical:[]};
 let sortCol='date', sortDir='desc';
 let resolvedConflicts=[];
 
-async function loadRecords(){try{const r=await window.storage.get('hma-records');if(r)records=JSON.parse(r.value);}catch(e){records=[];}renderTable();}
+/* THE CURRENT EMPLOYEE -- ONE-APP-PLAN phase 3.
+   One selection the shell and every section agree on, so the same person is not
+   found three times. The Tracker is where it gets SET, because the Tracker is
+   where the roster is.
+
+   Through `window.storage`, not localStorage: the shared adapter is how this app
+   reaches anything that other apps can see, and the Overlay's engine test
+   forbids a direct localStorage call outside it. A pointer that only this
+   browser could read would not be a shared selection at all.
+
+   It is a POINTER, NOT A RECORD -- id, name, badge and nothing else. A stale one
+   naming a deleted employee is harmless: nothing matches it and the row marker
+   simply does not appear. */
+const CURRENT_EMPLOYEE_KEY='hma-current-employee';
+let currentEmployee=null;
+
+async function loadCurrentEmployee(){
+  try{
+    const r=await window.storage.get(CURRENT_EMPLOYEE_KEY);
+    const v=r&&r.value?JSON.parse(r.value):null;
+    currentEmployee=(v&&typeof v.id==='string'&&v.id)?v:null;
+  }catch(e){currentEmployee=null;}
+}
+
+async function setCurrentEmployee(id,event){
+  if(event)event.stopPropagation();
+  const rec=records.find(r=>r.id===id);
+  if(!rec)return;
+  // Clicking the person who is already current clears them. One control, two
+  // directions -- there is nowhere sensible to put a second button in a row
+  // that already carries five.
+  const next=(currentEmployee&&currentEmployee.id===id)?null:{
+    id:rec.id,name:rec.name||'',badge:rec.badge||'',at:new Date().toISOString()
+  };
+  currentEmployee=next;
+  try{await window.storage.set(CURRENT_EMPLOYEE_KEY,next?JSON.stringify(next):'');}catch(e){}
+  renderTable();
+  toastCurrent(next);
+}
+
+function toastCurrent(emp){
+  try{
+    const bar=document.createElement('div');
+    bar.textContent=emp
+      ?`Current employee: ${emp.name}${emp.badge?' #'+emp.badge:''}`
+      :'Current employee cleared';
+    bar.style.cssText='position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:9999;'+
+      'padding:10px 18px;border-radius:999px;background:rgb(var(--accent));color:#fff;'+
+      'font:700 .85rem var(--font-sub),sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.35)';
+    document.body.appendChild(bar);
+    setTimeout(()=>bar.remove(),2200);
+  }catch(e){}
+}
+
+async function loadRecords(){
+  try{const r=await window.storage.get('hma-records');if(r)records=JSON.parse(r.value);}catch(e){records=[];}
+  await loadCurrentEmployee();
+  renderTable();
+}
 async function saveRecords(){try{await window.storage.set('hma-records',JSON.stringify(records));}catch(e){}}
 async function loadImageRegistry(){
   try{const r=await window.storage.get('hma-images-v2');if(r)IMAGE_REGISTRY=JSON.parse(r.value);}
@@ -2130,7 +2209,8 @@ function renderTable(){
     // while the gap is still cheap to fix -- rather than at plan issue.
     const noBadge=`<span class="badge badge-warn" style="font-size:.59rem;margin-left:5px" title="No badge number. Required before a plan can be sent to Cadence.">no badge #</span>`;
     const sub=[r.badge?'#'+r.badge:'',r.dept||''].filter(Boolean).join(' · ');
-    return`<tr><td><strong>${r.name}</strong>${r.badge?'':noBadge}<br><span style="font-size:.68rem;color:var(--tx2)">${sub}</span></td>
+    const isCurrent=!!(currentEmployee&&currentEmployee.id===r.id);
+    return`<tr class="${isCurrent?'row-current':''}"><td><button class="emp-name" onclick="setCurrentEmployee('${r.id}',event)" title="${isCurrent?'Clear this employee as the current one':'Make this the current employee across the suite'}"><strong>${r.name}</strong></button>${r.badge?'':noBadge}<br><span style="font-size:.68rem;color:var(--tx2)">${sub}</span></td>
       <td>${r.date}</td><td>${r.shift||'—'} Shift</td>
       <td><span class="type-chip${r.type==='Initial'?'':' retest'}">${r.type}</span></td>
       <td style="font-weight:800;font-size:1.14rem;color:var(--tx)">${r.total}<span style="font-size:.68rem;font-weight:400;color:var(--tx3)">/15</span></td>
