@@ -153,7 +153,26 @@
    *
    * It composites over whatever is under it, so it does not change what any
    * contrast check resolves a ground to by more than its own 13%. */
-  --page-wash: radial-gradient(1100px 520px at 50% -8%, rgb(var(--accent) / .13), transparent 70%);
+  /* SIZED IN VIEWPORT UNITS, and that is a bug fix rather than a tidy-up.
+   * A background defaults to `repeat`, and this one is applied to `body` --
+   * whose box is only as tall as its content. On any page shorter than the
+   * window, the 520px-tall bloom TILED, and the second tile's hot top edge
+   * landed as a hard horizontal band across the lower half of the screen. It
+   * was visible in the Overlay the moment the light alpha went up on
+   * 2026-09-25, and it had been there, faintly, in both themes all along.
+   *
+   * TWO CHANGES FIX IT AND BOTH ARE NEEDED. Viewport units, here, so the bloom
+   * scales with the window rather than being a fixed pixel shape -- the same
+   * reasoning already recorded for --page-wash-strong. And `background-repeat:
+   * no-repeat` AT EVERY USE SITE, which cannot live in this token because it is
+   * a separate property: a gradient's tile is sized `auto`, meaning the size of
+   * the PAGE box, so viewport units describe the gradient's shape but not the
+   * tile it is drawn into. Measured on the Overlay at 1512x700 with a 565px
+   * page: the second tile began at y=565, exactly where the band was.
+   *
+   * IF YOU PUT `var(--page-wash)` ON A NEW ELEMENT, PUT `background-repeat:
+   * no-repeat` WITH IT. */
+  --page-wash: radial-gradient(120vw 120vh at 50% -10%, rgb(var(--accent) / .13), transparent 70%);
 
   /* The same wash at LOGIN strength. A front door is one small card on a lot of
    * empty ground, and `--page-wash` -- tuned for a page that is mostly content
@@ -272,6 +291,23 @@
   /* Dark red to bright red on a light page; black to bright red would put the
    * page's darkest value at the top of every header. */
   --brand-gradient: var(--grad-light);
+
+  /* THE WASH IS STRONGER ON LIGHT, and it has to be. One alpha served both
+   * themes until 2026-09-25: 13% accent reads clearly over pure black and
+   * almost not at all over 20% Black, because the light page is already most
+   * of the way to the wash's own value and there is nothing left for it to
+   * lift.
+   *
+   * The owner, on the Manual in light mode: "a very startlingly boring shade
+   * of gray ... the boring gray in the background with the same gray colored
+   * buttons, it just, makes everything look like a stone." He raised the same
+   * thing about the Tracker and the Overlay in the same message -- which is
+   * why this is one value here rather than three fixes in three apps. All five
+   * apps put `var(--page-wash)` on `body`.
+   *
+   * Still one colour: --accent at a different alpha over a larger radius.
+   * Nothing new is declared and the dark theme does not move. */
+  --page-wash: radial-gradient(125vw 125vh at 50% -12%, rgb(var(--accent) / .26), transparent 72%);
 }
 /* ==== SHARED TOKENS — COPY END ==== */
 
@@ -329,7 +365,7 @@ html{font-size:var(--size-base)}   /* see note 1 in the header comment */
 body{font-family:var(--font-body);font-size:1rem;
   /* Toned, not pure -- brand guide 2.5. Alpha, so one value serves both themes,
      and the print block's `background:#fff` resets it to nothing. */
-  background:var(--page-wash),rgb(var(--depth));color:var(--tx)}
+  background:var(--page-wash),rgb(var(--depth));background-repeat:no-repeat;color:var(--tx)}
 
 /* ---------- THE BRAND'S TYPE HIERARCHY ----------
    ATI Brand Guide v1.8 §3.1: Barlow Condensed Bold for display set ALL
@@ -376,7 +412,10 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
 .header-logo{justify-self:start}
 .header-title{grid-column:2;text-align:center}
 .header h1{margin:0}
+/* Italic, by the owner's note of 2026-09-25: it reads as a subtitle rather
+   than as a second, smaller title. */
 .header-sub{margin:2px 0 0;font-family:var(--font-sub);font-size:.74rem;font-weight:600;
+  font-style:italic;
   letter-spacing:.08em;text-transform:uppercase;color:rgb(255 255 255 / .72)}
 .header .dark-toggle{grid-column:3;justify-self:end;margin-left:0}
 /* THE WHITE PLATE IS GONE. Brand Guide §1.5/§1.6: on dark backgrounds use the
@@ -418,6 +457,23 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
   border-radius:var(--r-pill);white-space:nowrap;transition:background .15s,color .15s;
   text-transform:none;letter-spacing:0;margin-bottom:0;font-family:inherit}
 .tab.active{background:rgb(var(--accent));color:#fff;border-color:transparent}
+/* LIGHT MODE NEEDED A VALUE STEP, NOT ANOTHER GREY. Owner, 2026-09-25: the
+   unselected tabs "match the background color nearly. It's a shade darker, but
+   not dark enough to really offset it... I don't want it to be just another
+   shade of gray."
+
+   He is right about the cause as well as the effect: `--tk-panel` on light is a
+   10% BLACK wash, and the light page is 20% Black -- so the pill is a tenth of
+   the way from the page toward black and can never be more than that.
+
+   Crisp White is the answer and it costs nothing in brand terms: both #FFFFFF
+   and #CCCCCC are ATI colours, and white pills against the 20% grey page are
+   the same value step the cards already use. The selected pill stays ATI red
+   with white type, which he said he likes. */
+:root[data-theme="light"] .tab{background:rgb(var(--surface));border-color:rgba(14,29,39,.30);color:var(--tx)}
+:root[data-theme="light"] .tab:hover:not(.active){background:rgb(var(--surface));
+  border-color:rgb(var(--accent));color:rgb(var(--accent))}
+:root[data-theme="light"] .tab.active{background:rgb(var(--accent));color:#fff;border-color:transparent}
 .tab:hover:not(.active){background:var(--panel-hi);color:var(--tx)}
 .content{padding:22px;flex:1;max-width:var(--tk-wide);margin:0 auto;width:100%;background:none}
 
@@ -618,27 +674,73 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
 .row-handoff{display:inline-flex;align-items:center;gap:3px;padding-left:9px;margin-left:6px;
   border-left:1px solid var(--rim)}
 
+/* THE ACTIONS CELL USED TO RUN OFF THE RIGHT OF THE SCREEN. Owner, 2026-09-25:
+   "the buttons for overlay and likely cadence are off the screen to the right.
+   Yes, now that I scroll over you can see them. They're out of frame."
+
+   Five buttons -- Edit, Exercises, Del, -> Overlay, -> Cadence -- were held on
+   one line by `white-space:nowrap`, in a nine-column table whose base type is
+   22px. Nothing could shrink and nothing could wrap, so the table simply grew
+   wider than the window.
+
+   They wrap onto a second line now. The handoff pair stays together on its own
+   line because `.row-handoff` is itself inline-flex, so the wrap lands in the
+   one place that reads as deliberate: the three row actions, then the two
+   hand-offs behind their divider. */
+.row-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:5px}
+/* DESTRUCTIVE, WITHOUT RED TEXT ON A PANEL. It was `color:rgb(var(--bad))`
+   inline, which measured 1.39:1 on the dark theme -- the same "it disappeared"
+   shape DESIGN-RULES lists three times. The rim carries the warning at rest,
+   where a 1px line only has to clear 1.35, and the hover state fills with red
+   and puts the type on white where it clears 4.84. */
+.btn-del{border-color:rgb(var(--accent))}
+.btn-del:hover{background:rgb(var(--accent));border-color:transparent;color:#fff}
+/* A floor under it: however the columns end up, nothing is ever unreachable. */
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+
 /* ---------- TABLE ----------
    The black head with the red leading accent goes; a table head is a label row,
    and making it a fixture was the Tracker idiom rather than a requirement. */
+/* CENTRED, HEAD AND BODY TOGETHER. Owner, 2026-09-25: "the titles, name, date,
+   shift, type, score, etc. aren't center aligned in there."
+
+   Centring only the heads would have made it worse -- a centred label over
+   left-set data is a visibly crooked column -- so both move, and they move in
+   the same rule so they cannot drift apart later.
+
+   THE NAME COLUMN WAS ALSO GENUINELY MISALIGNED, by exactly 3px, and that is
+   probably what caught his eye first: `td:first-child` carries a 3px
+   transparent left border (it turns red on hover) and `th:first-child` had
+   `border-left:none`, so every name sat 3px right of its own heading. The
+   header now reserves the same 3px. */
 .emp-table{width:100%;border-collapse:collapse;font-size:.86rem}
-.emp-table th{background:var(--panel-mid);color:var(--tx2);padding:10px 15px;text-align:left;
+.emp-table th{background:var(--panel-mid);color:var(--tx2);padding:10px 12px;text-align:center;
   font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;font-weight:700;
   border-bottom:1px solid var(--rim);font-family:inherit}
-.emp-table th:first-child{border-left:none;border-top-left-radius:var(--r-input)}
+.emp-table td{text-align:center;vertical-align:middle}
+/* Date and Shift are short, fixed-shape values and were breaking across two
+   lines once the columns tightened -- "2026-09-24" and "3rd Shift" read as
+   damage rather than as wrapping. There is room for them now that Actions
+   wraps instead of forcing the table wider than the window. */
+.emp-table td:nth-child(2),.emp-table td:nth-child(3){white-space:nowrap}
+.emp-table th:first-child{border-left:3px solid transparent;border-top-left-radius:var(--r-input)}
 .emp-table th:last-child{border-top-right-radius:var(--r-input)}
 .emp-table th.sortable{cursor:pointer;user-select:none}
 .emp-table th.sortable:hover{background:var(--panel-hi);color:var(--tx)}
 .emp-table th.sort-active{background:rgb(var(--accent) / .16);color:rgb(var(--ink));font-weight:700}
 .sort-ind{font-size:.55rem;margin-left:3px;opacity:.9}
-.emp-table td{padding:12px 15px;border-bottom:1px solid var(--rim)}
+.emp-table td{padding:12px 12px;border-bottom:1px solid var(--rim)}
 .emp-table tbody tr:nth-child(even) td{background:rgb(var(--ink) / .028)}
 .emp-table tr:hover td{background:var(--panel-mid)}
 .emp-table tr:hover td:first-child{border-left:3px solid rgb(var(--accent))}
 .emp-table td:first-child{border-left:3px solid transparent}
 .badge{display:inline-block;padding:3px 11px;border-radius:var(--r-pill);font-size:.68rem;
   font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-family:inherit}
-.badge-high{background:rgb(var(--bad-tint));color:rgb(var(--bad))}
+/* ATI DARK RED AS THE INK, not Bright Red. Bright Red on its own tint measures
+   3.94:1 -- under the 4.5 bar for text this size -- and --accent-deep (#A30D1D)
+   is already in the palette as the gradient's dark end, so this needs no new
+   colour. Same swap on .badge-hyper's sibling below and on .type-chip.retest. */
+.badge-high{background:rgb(var(--bad-tint));color:rgb(var(--accent-deep))}
 .badge-mod{background:rgb(var(--warn-tint));color:#7a5b00}
 .badge-low{background:rgb(var(--ok-tint));color:rgb(var(--ok))}
 .badge-hyper{background:rgb(var(--hyper-tint));color:rgb(var(--hyper))}
@@ -646,14 +748,17 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
    to carry: this was `.badge-oa` until osteoarthritis left the estate on
    2026-09-18, and the only thing wearing it now is the missing-badge-number
    warning, which was never an OA concern. */
-.badge-warn{background:rgb(var(--hot-tint));color:rgb(var(--hot))}
+/* #7a5b00, the same dark amber .badge-mod already uses on the same family of
+   tint. PMS 1375 on its own tint measured 1.71:1 -- the yellow is a background
+   colour, not an ink. */
+.badge-warn{background:rgb(var(--hot-tint));color:#7a5b00}
 /* Initial vs re-assessment. Was an inline ternary between two literal greys,
    which meant the chip's TEXT colour was whatever the row inherited -- fine on
    a light page, unreadable the moment the ground under it became a tint. The
    pair travels together now. */
 .type-chip{display:inline-block;font-size:.73rem;font-weight:700;padding:2px 9px;
   border-radius:var(--r-pill);background:var(--panel-mid);color:var(--tx2)}
-.type-chip.retest{background:rgb(var(--bad-tint));color:rgb(var(--bad))}
+.type-chip.retest{background:rgb(var(--bad-tint));color:rgb(var(--accent-deep))}
 
 /* ---------- EXERCISE BUILDER ---------- */
 .ex-category{margin-bottom:14px;border-radius:var(--r-input);overflow:hidden;
@@ -925,6 +1030,7 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
         <button class="btn btn-outline btn-sm" onclick="togglePastePanel()">Cancel</button>
       </div>
     </div>
+    <div class="table-scroll">
     <table class="emp-table">
       <thead><tr>
         <th id="th-name" class="sortable" onclick="sortBy('name')">Name<span class="sort-ind"></span></th>
@@ -939,6 +1045,7 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
       </tr></thead>
       <tbody id="emp-tbody"></tbody>
     </table>
+    </div>
   </div>
 </div>
 
@@ -1212,11 +1319,11 @@ function hmaShellHome(selector) {
     css.textContent =
       '.shell-home-host{align-items:center}' +
       '.shell-home{display:inline-flex;align-items:center;gap:9px;min-height:46px;' +
-      'padding:0 20px;border-radius:var(--r-pill);border:1px solid rgb(var(--ink) / .42);' +
-      'background:rgb(var(--ink) / .14);color:var(--tx);font-family:var(--font-sub),sans-serif;' +
+      'padding:0 20px;border-radius:var(--r-pill);border:1px solid rgb(var(--ink) / .30);' +
+      'background:rgb(var(--surface));color:var(--tx);font-family:var(--font-sub),sans-serif;' +
       'font-size:1rem;font-weight:700;line-height:1;text-decoration:none;white-space:nowrap;' +
       'flex-shrink:0;transition:background .15s ease,border-color .15s ease}' +
-      '.shell-home:hover,.shell-home:focus-visible{background:rgb(var(--ink) / .24);' +
+      '.shell-home:hover,.shell-home:focus-visible{background:rgb(var(--surface));' +
       'border-color:rgb(var(--accent))}' +
       '.shell-home-rule{flex:none;width:1px;height:26px;margin:0 2px;' +
       'background:rgb(var(--ink) / .3)}' +
@@ -2024,20 +2131,20 @@ function renderTable(){
     const noBadge=`<span class="badge badge-warn" style="font-size:.59rem;margin-left:5px" title="No badge number. Required before a plan can be sent to Cadence.">no badge #</span>`;
     const sub=[r.badge?'#'+r.badge:'',r.dept||''].filter(Boolean).join(' · ');
     return`<tr><td><strong>${r.name}</strong>${r.badge?'':noBadge}<br><span style="font-size:.68rem;color:var(--tx2)">${sub}</span></td>
-      <td>${r.date}</td><td style="font-size:18px">${r.shift||'—'} Shift</td>
+      <td>${r.date}</td><td>${r.shift||'—'} Shift</td>
       <td><span class="type-chip${r.type==='Initial'?'':' retest'}">${r.type}</span></td>
       <td style="font-weight:800;font-size:1.14rem;color:var(--tx)">${r.total}<span style="font-size:.68rem;font-weight:400;color:var(--tx3)">/15</span></td>
       <td><span class="badge badge-${risk}">${{high:'High',mod:'Moderate',low:'Low'}[risk]}</span></td>
       <td>${flagsCell}</td>
-      <td style="font-size:18px">${fu}</td>
-      <td style="white-space:nowrap">
-        <button class="btn btn-outline btn-sm" onclick="editRecord('${r.id}')" style="margin-right:3px">Edit</button>
-        <button class="btn btn-red btn-sm" onclick="openExerciseBuilderById('${r.id}')" style="margin-right:3px">Exercises</button>
-        <button class="btn btn-outline btn-sm" onclick="deleteRecord('${r.id}')" style="color:rgb(var(--bad))">Del</button>
+      <td>${fu}</td>
+      <td class="row-actions-cell"><div class="row-actions">
+        <button class="btn btn-outline btn-sm" onclick="editRecord('${r.id}')">Edit</button>
+        <button class="btn btn-red btn-sm" onclick="openExerciseBuilderById('${r.id}')">Exercises</button>
+        <button class="btn btn-outline btn-sm btn-del" onclick="deleteRecord('${r.id}')">Del</button>
         <span class="row-handoff"><button class="btn btn-sm btn-handoff" onclick="sendRecordToOverlay('${r.id}',event)" title="Copy just this employee's record for the HMA Overlay job-match tool. Use the header button only when you want the whole roster.">→ Overlay</button>${r.program
           ?`<button class="btn btn-sm btn-handoff" onclick="exportPlanForCadence('${r.id}',event)" title="Copy this employee's finished plan for Cadence-Admin, which encrypts it into their QR code">→ Cadence</button>`
           :`<button class="btn btn-sm btn-handoff" disabled title="No exercise program saved yet. Open Exercises for this employee and click Preview Print Sheet — that is what saves the program Cadence needs.">→ Cadence</button>`}</span>
-      </td></tr>`;
+      </div></td></tr>`;
   }).join('');
 }
 
@@ -2228,7 +2335,27 @@ function buildExerciseUI(){
      unprofessional" -- and he is right that a second set earns its place only
      when there is a long list above it to have scrolled past. */
   const bottomActions=document.getElementById('ex-actions-bottom');
-  if(bottomActions)bottomActions.hidden=!Object.keys(selectedExercises).length;
+  /* A SECOND ACTION ROW EARNS ITS PLACE ONLY WHEN THE FIRST HAS SCROLLED AWAY.
+     Owner, 2026-09-25: "Exercise Sheet Builder still has two separate Start
+     Over, Clear All, and Print Preview Sheet buttons... we just have a
+     redundancy right there that looks unprofessional."
+
+     The old test was "is anything selected", which the auto-suggestions satisfy
+     the instant the builder opens -- so both rows appeared together with a
+     short list between them, which is exactly the redundancy he is describing
+     and the same complaint he made on 2026-09-17.
+
+     The real condition is whether the list is long enough that the top row is
+     off screen, so that is what is measured. Deferred a frame because the list
+     is written immediately below and has no height until it has been laid
+     out. */
+  if(bottomActions){
+    requestAnimationFrame(()=>{
+      const list=document.getElementById('ex-categories');
+      const tall=list&&list.offsetHeight>window.innerHeight*0.9;
+      bottomActions.hidden=!(Object.keys(selectedExercises).length&&tall);
+    });
+  }
   document.getElementById('ex-categories').innerHTML=cats.map(({key,data})=>{
     const isHyper=hyperSuggestedKeys[key];
     const isMobility=suggestedKeys[key];
