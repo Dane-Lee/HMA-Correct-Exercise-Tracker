@@ -15,7 +15,8 @@ let records = [];
 let confirmAnswer = true;
 const saveRecords = () => {};
 const renderTable = () => {};
-const confirm = () => confirmAnswer;
+const confirms = [];
+const confirm = (message) => { confirms.push(message); return confirmAnswer; };
 const alerts = [];
 const alert = (m) => alerts.push(m);
 
@@ -141,6 +142,30 @@ confirmAnswer = false;
 const snapshot = JSON.stringify(ref.value);
 api.apply([reExport({ total: 999 })]);
 assert.equal(JSON.stringify(ref.value), snapshot, "cancel must be a no-op");
+
+// 9b. A new id with the badge and date of a record already held is named in the
+// confirm as a likely duplicate -- and still ADDED, never merged, because one
+// badge legitimately owns an Initial and its re-tests.
+confirmAnswer = true;
+ref.value.length = 0;
+ref.value.push(trackerAuthored({ badge: "4412" }));
+api.apply([{ ...reExport(), id: "ai-7", badge: "4412" }]);
+assert.match(confirms.at(-1), /Possible duplicate: 1 new record\(s\) share a badge and date/);
+assert.match(confirms.at(-1), /Casey Jones #4412, 2026-07-23/);
+assert.equal(ref.value.length, 2, "a likely duplicate is added, not merged");
+assert.equal(ref.value[1].total, 8, "the held record's scores are untouched");
+
+// 9c. Same badge on a different date is a re-test, not a duplicate: no warning.
+ref.value.length = 0;
+ref.value.push(trackerAuthored({ badge: "4412" }));
+api.apply([{ ...reExport(), id: "retest-1", badge: "4412", date: "2026-11-23" }]);
+assert.doesNotMatch(confirms.at(-1), /Possible duplicate/);
+
+// 9d. No badge means no basis for a guess: no warning.
+ref.value.length = 0;
+ref.value.push(trackerAuthored({ badge: "" }));
+api.apply([{ ...reExport(), id: "nobadge-1", badge: "" }]);
+assert.doesNotMatch(confirms.at(-1), /Possible duplicate/);
 
 // 10. Every field getFormData() writes must be classified by the merge, so a
 // new field cannot quietly fall through as "refreshed" or "kept" by accident.
