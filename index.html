@@ -2326,6 +2326,13 @@ function exportPlanForCadence(id,evt){
   try{json=JSON.stringify(buildPlanPayload(rec),null,2);}
   catch(e){alert(e.message);return;}
   const btn=evt&&evt.currentTarget;
+  // Stamped so the suite's home screen can tell a program that has gone to
+  // Cadence from one still waiting (owner, 2026-09-29). A copy is the hand-off
+  // this app can see; it cannot see the paste into Cadence-Admin. Lives on
+  // `program`, which buildPlanPayload() reads field by field, so it never
+  // reaches the plan contract.
+  rec.program.sent_to_cadence_at=new Date().toISOString();
+  saveRecords();
   const done=()=>{if(!btn)return;const o=btn.textContent;btn.textContent='✓ Copied';setTimeout(()=>{btn.textContent=o;},2000);};
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(json).then(done).catch(()=>{fallbackCopy(json);done();});}
   else{fallbackCopy(json);done();}
@@ -2690,6 +2697,13 @@ function _buildCalendarPage(chosen,sched){
   </div>`;
 }
 
+// What the employee would actually receive. Timestamps and stamps are not the program.
+function sameProgram(a,b){
+  if(!a||!b)return false;
+  const shape=p=>JSON.stringify([p.work_days||[],p.session_budget_sec||0,(p.exercises||[]).map(e=>[e.id,e.prescription,e.days||[],e.sort_order])]);
+  return shape(a)===shape(b);
+}
+
 // Writes the finalized program onto the record. Called from _renderPrintSheet
 // because producing the sheet is the moment a selection becomes the employee's
 // program. Stored under `program` -- `plan` is already a "Yes"/"No" string meaning
@@ -2700,7 +2714,7 @@ function persistProgram(chosen,sched){
   const i=records.findIndex(r=>r.id===rec.id);
   if(i<0)return;
   const prev=records[i].program;
-  records[i].program={
+  const next={
     // Stable for the life of this plan; a re-assessment creates a new record and
     // therefore a new plan_id, which is what tells Cadence to archive the old one.
     plan_id:prev&&prev.plan_id?prev.plan_id:(self.crypto&&crypto.randomUUID?crypto.randomUUID():'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,10)),
@@ -2714,6 +2728,15 @@ function persistProgram(chosen,sched){
       sort_order:k
     }))
   };
+  // Reprinting the sheet runs through here too. If the program did not change,
+  // it keeps its finalized time and its sent-to-Cadence stamp, or every reprint
+  // would light the home screen's Records as "not sent" for a plan the employee
+  // already has. If it DID change, the stamp goes: an edited plan needs sending.
+  if(sameProgram(prev,next)){
+    next.finalized_at=prev.finalized_at||next.finalized_at;
+    if(prev.sent_to_cadence_at)next.sent_to_cadence_at=prev.sent_to_cadence_at;
+  }
+  records[i].program=next;
   currentEmpForSheet=records[i];
   saveRecords();
   renderTable();
