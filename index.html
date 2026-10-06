@@ -1197,7 +1197,7 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
  * because both files are standalone by design and an external script would
  * break the standalone case outright. A test asserts the two stay identical.
  */
-/* ==== HMA-SHARED-STORAGE-ADAPTER v3 -- keep identical across apps ==== */
+/* ==== HMA-SHARED-STORAGE-ADAPTER v4 -- keep identical across apps ==== */
 function makeSharedStorage() {
   var API = '/api/local-store/';
   var seeded = {};
@@ -1226,6 +1226,35 @@ function makeSharedStorage() {
   var fromDisk = false;
   try { fromDisk = location.protocol === 'file:'; } catch (e) {}
 
+  /* v4, 2026-10-06: THE STORE IS BEHIND THE SUITE'S SIGN-IN. Served by the
+     suite these pages carry its cookie, so nothing changes while it lasts.
+     A sign-in runs 12 hours from signing in, so a page left open overnight
+     meets a 401 on its next save. That change is already in this browser's
+     storage, so the key is marked UNSENT and the page goes to sign-in; the
+     first read after signing back in sends the browser's copy before asking
+     for the stored one. Otherwise the older stored copy would win the reload
+     and the change would be gone without a word. A save that fails because
+     the server stopped is marked the same way, which ends the same quiet loss
+     there: until v4 an offline change survived only if the page stayed open
+     until something was saved again. */
+  var UNSENT = 'hma-unsent:';
+
+  function put(key, value) {
+    return fetch(API + encodeURIComponent(key), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value: value })
+    });
+  }
+
+  function signIn() {
+    try {
+      var path = location.pathname;
+      while (path.length > 1 && path.charAt(path.length - 1) === '/') path = path.slice(0, -1);
+      location.href = '/?next=' + encodeURIComponent(path);
+    } catch (e) {}
+  }
+
   function localGet(key) {
     try {
       var val = localStorage.getItem(key);
@@ -1235,6 +1264,10 @@ function makeSharedStorage() {
 
   function localSet(key, value) {
     try { localStorage.setItem(key, value); } catch (e) {}
+  }
+
+  function localRemove(key) {
+    try { localStorage.removeItem(key); } catch (e) {}
   }
 
   function goOffline() {
@@ -1262,17 +1295,31 @@ function makeSharedStorage() {
         if (fromDisk) goOffline();
         return Promise.resolve(localGet(key));
       }
+      var unsent = localGet(UNSENT + key) ? localGet(key) : null;
+      if (unsent) {
+        return put(key, unsent.value)
+          .then(function (res) {
+            if (res.status === 401) { signIn(); return unsent; }
+            if (!res.ok) throw new Error('local-store PUT ' + res.status);
+            localRemove(UNSENT + key);
+            return unsent;
+          })
+          .catch(function () {
+            goOffline();
+            return unsent;
+          });
+      }
       return fetch(API + encodeURIComponent(key), { headers: { 'Accept': 'application/json' } })
         .then(function (res) {
+          if (res.status === 401) {
+            signIn();
+            return localGet(key);
+          }
           if (res.status === 404) {
             var local = localGet(key);
             if (local && !seeded[key]) {
               seeded[key] = true;
-              return fetch(API + encodeURIComponent(key), {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ value: local.value })
-              }).then(function () { return local; }, function () { return local; });
+              return put(key, local.value).then(function () { return local; }, function () { return local; });
             }
             return null;
           }
@@ -1291,13 +1338,16 @@ function makeSharedStorage() {
         goOffline();
         return Promise.resolve();
       }
-      return fetch(API + encodeURIComponent(key), {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ value: value })
-      }).then(function (res) {
+      return put(key, value).then(function (res) {
+        if (res.status === 401) {
+          localSet(UNSENT + key, '1');
+          signIn();
+          return;
+        }
         if (!res.ok) throw new Error('local-store PUT ' + res.status);
+        localRemove(UNSENT + key);
       }).catch(function () {
+        localSet(UNSENT + key, '1');
         goOffline();
       });
     }
