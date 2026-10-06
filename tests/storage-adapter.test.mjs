@@ -47,23 +47,27 @@ function load(href) {
 }
 
 // 1. Off this machine: no request of any kind, and the browser copy still works.
-for (const href of [
-  "https://hma-tracker.vercel.app/",            // the deployed Tracker
-  "https://hma-tracker.vercel.app/tracker",     // even on the shell's own path
-  "file:///C:/Users/someone/HMA%20Overlay.html", // the Overlay opened from disk
-  "http://192.168.1.20:5182/",                  // another machine on the network
+//    The offline bar keeps the timing it had before any of this (v3 in the
+//    block): on opening from a file, but on the Vercel copy only after a save,
+//    because the owner's manager shows that copy to people without saving.
+for (const [href, barOnOpening] of [
+  ["https://hma-tracker.vercel.app/", false],            // the deployed Tracker
+  ["https://hma-tracker.vercel.app/tracker", false],     // even on the shell's own path
+  ["file:///C:/Users/someone/HMA%20Overlay.html", true], // the Overlay opened from disk
+  ["http://192.168.1.20:5182/", false],                  // another machine on the network
 ]) {
   const { storage, requests, local, bars } = load(href);
 
   const got = await storage.get("hma-records");
   assert.equal(got?.value, RECORDS, `${href}: reads this browser's copy`);
+  assert.equal(bars.length, barOnOpening ? 1 : 0, `${href}: offline bar on opening is ${barOnOpening}`);
 
   const next = JSON.stringify([{ id: "r2", name: "Another Fictional Person" }]);
   await storage.set("hma-records", next);
   assert.equal(local.get("hma-records"), next, `${href}: writes this browser's copy`);
 
   assert.deepEqual(requests, [], `${href}: must send nothing anywhere, got ${JSON.stringify(requests)}`);
-  assert.equal(bars.length, 1, `${href}: says once that it is saving to this browser only`);
+  assert.equal(bars.length, 1, `${href}: once saved, says once that it is saving to this browser only`);
 }
 
 // 2. Served by this machine: the suite reaches the shared store as it always did.

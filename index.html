@@ -1197,7 +1197,7 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
  * because both files are standalone by design and an external script would
  * break the standalone case outright. A test asserts the two stay identical.
  */
-/* ==== HMA-SHARED-STORAGE-ADAPTER v2 -- keep identical across apps ==== */
+/* ==== HMA-SHARED-STORAGE-ADAPTER v3 -- keep identical across apps ==== */
 function makeSharedStorage() {
   var API = '/api/local-store/';
   var seeded = {};
@@ -1217,6 +1217,14 @@ function makeSharedStorage() {
       (location.protocol === 'http:' || location.protocol === 'https:') &&
       /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
   } catch (e) {}
+  /* v3, same day: the offline bar keeps the timing it had in v1, now that the
+     requests that used to raise it are gone. From a file the request failed
+     outright, so the bar appeared on opening; on Vercel the GET came back a
+     plain 404, so only a failed SAVE raised it. Anyone just looking at the
+     Vercel copy -- the owner's manager shows it to people -- never saw it.
+     v2 showed it on opening everywhere; this puts it back. */
+  var fromDisk = false;
+  try { fromDisk = location.protocol === 'file:'; } catch (e) {}
 
   function localGet(key) {
     try {
@@ -1251,7 +1259,7 @@ function makeSharedStorage() {
   return {
     get: function (key) {
       if (!onThisMachine) {
-        goOffline();
+        if (fromDisk) goOffline();
         return Promise.resolve(localGet(key));
       }
       return fetch(API + encodeURIComponent(key), { headers: { 'Accept': 'application/json' } })
