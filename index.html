@@ -1197,11 +1197,26 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
  * because both files are standalone by design and an external script would
  * break the standalone case outright. A test asserts the two stay identical.
  */
-/* ==== HMA-SHARED-STORAGE-ADAPTER v1 -- keep identical across apps ==== */
+/* ==== HMA-SHARED-STORAGE-ADAPTER v2 -- keep identical across apps ==== */
 function makeSharedStorage() {
   var API = '/api/local-store/';
   var seeded = {};
   var warned = false;
+
+  /* v2, 2026-10-06: THE STORE IS ONLY EVER ASKED FROM A PAGE THIS MACHINE
+     SERVED. `API` is a relative path, so it resolves against wherever the page
+     came from -- and the Tracker also deploys to Vercel, where it resolved to
+     Vercel's own servers. Every save there PUT the whole record set to Vercel,
+     and every page load seeded each stored key the same way. Vercel refused
+     them, but by then they had been sent. The Manual's server binds loopback
+     and its store refuses anything else, so this applies the same rule from
+     this side: anywhere else gets this browser's storage and no request. */
+  var onThisMachine = false;
+  try {
+    onThisMachine =
+      (location.protocol === 'http:' || location.protocol === 'https:') &&
+      /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+  } catch (e) {}
 
   function localGet(key) {
     try {
@@ -1235,6 +1250,10 @@ function makeSharedStorage() {
 
   return {
     get: function (key) {
+      if (!onThisMachine) {
+        goOffline();
+        return Promise.resolve(localGet(key));
+      }
       return fetch(API + encodeURIComponent(key), { headers: { 'Accept': 'application/json' } })
         .then(function (res) {
           if (res.status === 404) {
@@ -1260,6 +1279,10 @@ function makeSharedStorage() {
 
     set: function (key, value) {
       localSet(key, value);
+      if (!onThisMachine) {
+        goOffline();
+        return Promise.resolve();
+      }
       return fetch(API + encodeURIComponent(key), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
