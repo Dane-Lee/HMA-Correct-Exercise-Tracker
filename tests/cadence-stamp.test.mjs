@@ -62,7 +62,9 @@ assert.ok(!api.sameProgram(
 
 // 5. The stamp is written on the → Cadence copy, and never enters the plan payload.
 const exporter = html.slice(html.indexOf("function exportPlanForCadence("), html.indexOf("function openExerciseBuilderById("));
-assert.match(exporter, /rec\.program\.sent_to_cadence_at=new Date\(\)\.toISOString\(\);\s*saveRecords\(\);/);
+// Saved straight away in both places -- inside the suite the save is awaited
+// before the page moves to Cadence-Admin (2026-10-07), so it is kept, not fired.
+assert.match(exporter, /rec\.program\.sent_to_cadence_at=new Date\(\)\.toISOString\(\);\s*const saved=saveRecords\(\);/);
 const payload = html.slice(html.indexOf("function buildPlanPayload("), html.indexOf("function exportPlanForCadence("));
 assert.doesNotMatch(payload, /sent_to_cadence_at|\.\.\.prog/, "the stamp must not reach the Cadence contract");
 

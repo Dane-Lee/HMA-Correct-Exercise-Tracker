@@ -2303,7 +2303,7 @@ function renderTable(){
         <button class="btn btn-red btn-sm" onclick="openExerciseBuilderById('${r.id}')">Exercises</button>
         <button class="btn btn-outline btn-sm btn-del" onclick="deleteRecord('${r.id}')">Del</button>
         <span class="row-handoff"><button class="btn btn-sm btn-handoff" onclick="sendRecordToOverlay('${r.id}',event)" title="Copy just this employee's record for the HMA Overlay job-match tool. Use the header button only when you want the whole roster.">→ Overlay</button>${r.program
-          ?`<button class="btn btn-sm btn-handoff" onclick="exportPlanForCadence('${r.id}',event)" title="Copy this employee's finished plan for Cadence-Admin, which encrypts it into their QR code">→ Cadence</button>`
+          ?`<button class="btn btn-sm btn-handoff" onclick="exportPlanForCadence('${r.id}',event)" title="Send this employee's finished plan to Cadence-Admin, which turns it into their QR codes">→ Cadence</button>`
           :`<button class="btn btn-sm btn-handoff" disabled title="No exercise program saved yet. Open Exercises for this employee and click Preview Print Sheet — that is what saves the program Cadence needs.">→ Cadence</button>`}</span>
       </div></td></tr>`;
   }).join('');
@@ -2400,6 +2400,14 @@ function buildPlanPayload(rec){
   };
 }
 
+// The key Cadence-Admin's Issue page takes a handed-over plan from. A contract
+// with HMA-Cadence's src/lib/handoff.js and the suite's store allow-list.
+const CADENCE_HANDOFF_KEY='hma-cadence-handoff';
+
+// Served by the suite at /tracker -- as opposed to opened on its own, where
+// there is no Cadence-Admin to hand anything to.
+function inSuite(){return location.pathname.replace(/\/+$/,'')==='/tracker';}
+
 function exportPlanForCadence(id,evt){
   const rec=records.find(r=>r.id===id);
   if(!rec)return;
@@ -2413,7 +2421,19 @@ function exportPlanForCadence(id,evt){
   // `program`, which buildPlanPayload() reads field by field, so it never
   // reaches the plan contract.
   rec.program.sent_to_cadence_at=new Date().toISOString();
-  saveRecords();
+  const saved=saveRecords();
+  // STRAIGHT TO CADENCE-ADMIN inside the suite (2026-10-07), which lives at
+  // /cadence now and shares this store: the plan goes under the hand-off key and
+  // the Issue page opens and takes it -- no paste. Saved and sent BEFORE the
+  // page changes, or the navigation could cut both writes off. The clipboard
+  // still gets a copy, while the click still counts as a user gesture, so a
+  // hand-off that did not land can be pasted by hand.
+  if(inSuite()){
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(json).catch(()=>{});}
+    return Promise.resolve(saved)
+      .then(()=>window.storage.set(CADENCE_HANDOFF_KEY,json))
+      .then(()=>{location.href='/cadence/admin/issue';});
+  }
   const done=()=>{if(!btn)return;const o=btn.textContent;btn.textContent='✓ Copied';setTimeout(()=>{btn.textContent=o;},2000);};
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(json).then(done).catch(()=>{fallbackCopy(json);done();});}
   else{fallbackCopy(json);done();}
