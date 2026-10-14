@@ -722,7 +722,7 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
    lines once the columns tightened -- "2026-09-24" and "3rd Shift" read as
    damage rather than as wrapping. There is room for them now that Actions
    wraps instead of forcing the table wider than the window. */
-.emp-table td:nth-child(2),.emp-table td:nth-child(3){white-space:nowrap}
+.emp-table td:nth-child(3),.emp-table td:nth-child(4){white-space:nowrap}
 
 /* THE NAME IS THE CONTROL that sets the current employee (ONE-APP-PLAN phase
    3). A button rather than a click handler on the cell, so it is reachable by
@@ -755,6 +755,30 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
 .emp-table tr:hover td{background:var(--panel-mid)}
 .emp-table tr:hover td:first-child{border-left:3px solid rgb(var(--accent))}
 .emp-table td:first-child{border-left:3px solid transparent}
+/* ROW LIGHTS. The owner, 2026-10-14: "Can't we push a light in each employee's
+   line ... so we know as soon as we go into Tracker and see it?" The home
+   screen's Records light, one per record, at the left where the eye starts.
+   The lamp is the home screen's (HMA-Manual web_manual/src/styles/index.css,
+   .status-light) value for value, and so are its two colours: the owner's
+   lights exception (DESIGN-RULES §0) reaches these rows by his own word, and
+   nothing else in the Tracker may use them. test_status_light_colours.py
+   fails if the copies drift. */
+:root{--light-ready:26 111 214;--light-good:19 135 75}
+:root[data-theme="dark"]{--light-ready:77 163 255;--light-good:52 210 123}
+.emp-table th.th-light,.emp-table td.cell-light{width:1px;padding-left:14px;padding-right:2px}
+.row-light{display:inline-block;width:15px;height:15px;border-radius:999px;vertical-align:middle;
+  background:rgb(var(--lamp));border:1px solid rgb(var(--lamp));box-shadow:0 0 9px 1px rgb(var(--lamp) / .55)}
+.row-light[data-status="ready"]{--lamp:var(--light-ready)}
+.row-light[data-status="good"]{--lamp:var(--light-good)}
+/* A missing badge number: the same colour, breathing -- the home screen's
+   signal for exactly this, at its 2.4s, and steady for reduced motion. */
+.row-light[data-pulse="true"]{animation:row-lamp-pulse 2.4s ease-in-out infinite}
+@keyframes row-lamp-pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@media (prefers-reduced-motion:reduce){
+  .row-light[data-pulse="true"]{animation:none;outline:2px solid rgb(var(--lamp));outline-offset:2px}
+}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+  clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .badge{display:inline-block;padding:3px 11px;border-radius:var(--r-pill);font-size:.68rem;
   font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-family:inherit}
 /* ATI DARK RED AS THE INK, not Bright Red. Bright Red on its own tint measures
@@ -899,10 +923,10 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
   .lib-grid{grid-template-columns:repeat(2,1fr)}
   .tab{padding:8px 12px;font-size:.8rem}
   /* Hide Shift, Type, Flags, Follow-up on tablet — keep Name/Date/Score/Risk/Actions */
-  .emp-table th:nth-child(3),.emp-table td:nth-child(3),
   .emp-table th:nth-child(4),.emp-table td:nth-child(4),
-  .emp-table th:nth-child(7),.emp-table td:nth-child(7),
-  .emp-table th:nth-child(8),.emp-table td:nth-child(8){display:none}
+  .emp-table th:nth-child(5),.emp-table td:nth-child(5),
+  .emp-table th:nth-child(8),.emp-table td:nth-child(8),
+  .emp-table th:nth-child(9),.emp-table td:nth-child(9){display:none}
 }
 @media (max-width:480px){
   .header{padding:12px 16px;gap:10px;margin:12px auto 0;width:calc(100% - 24px)}
@@ -917,7 +941,7 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
   .score-grid{grid-template-columns:repeat(2,1fr);gap:8px}
   .score-block-title{font-size:.68rem}
   /* Also hide Date on phone — keep Name/Score/Risk/Actions */
-  .emp-table th:nth-child(2),.emp-table td:nth-child(2){display:none}
+  .emp-table th:nth-child(3),.emp-table td:nth-child(3){display:none}
   .emp-table th,.emp-table td{padding:10px;font-size:.77rem}
   .ex-grid{grid-template-columns:1fr 1fr}
   .lib-grid{grid-template-columns:1fr}
@@ -1054,6 +1078,7 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
     <div class="table-scroll">
     <table class="emp-table">
       <thead><tr>
+        <th class="th-light"><span class="sr-only">Status</span></th>
         <th id="th-name" class="sortable" onclick="sortBy('name')">Name<span class="sort-ind"></span></th>
         <th id="th-date" class="sortable" onclick="sortBy('date')">Date<span class="sort-ind"></span></th>
         <th id="th-shift" class="sortable" onclick="sortBy('shift')">Shift<span class="sort-ind"></span></th>
@@ -2272,6 +2297,38 @@ function sortRecords(arr){
   });
 }
 
+// ROW LIGHTS -- the home screen's Records light (suite_status.py,
+// records_light), worked out per record. A blue row is exactly a record that
+// turns Records blue there: no program and neither pain nor a low-risk score,
+// or a program finished after the stamp existed and not yet sent to Cadence.
+// The two constants are suite_status.py's; test_status_light_colours.py checks
+// they still agree.
+const LIGHT_STAMP_INTRODUCED_AT='2026-09-29T17:33:10Z';
+const LIGHT_LOW_RISK_MIN_TOTAL=11;
+function recordLight(r){
+  const pain=Object.values((r&&r.scores)||{}).some(pair=>Array.isArray(pair)&&pair.some(side=>side&&side.pain));
+  const lowRisk=typeof r.total==='number'&&r.total>=LIGHT_LOW_RISK_MIN_TOTAL;
+  const prog=r.program&&typeof r.program==='object'?r.program:null;
+  const hasProgram=!!(prog&&Array.isArray(prog.exercises)&&prog.exercises.length);
+  const finalized=String((prog&&prog.finalized_at)||'');
+  const sent=!!(prog&&(prog.sent_to_cadence_at||finalized===''||finalized<LIGHT_STAMP_INTRODUCED_AT));
+  const needsProgram=!hasProgram&&!pain&&!lowRisk;
+  const notSent=hasProgram&&!pain&&!sent;
+  const noBadge=!String(r.badge||'').trim();
+  const detail=[];
+  if(needsProgram)detail.push('Needs a program built');
+  if(notSent)detail.push('Program not sent to Cadence');
+  if(noBadge)detail.push('No badge number');
+  const status=needsProgram||notSent?'ready':'good';
+  if(!detail.length)detail.push('Nothing waiting');
+  return{status,detail,pulse:noBadge};
+}
+function rowLightHtml(r){
+  const l=recordLight(r);
+  const text=(l.status==='ready'?'Ready':'Good')+': '+l.detail.join(' \u00b7 ');
+  return`<span class="row-light" role="img" data-status="${l.status}"${l.pulse?' data-pulse="true"':''} aria-label="${text}" title="${text}"></span>`;
+}
+
 function renderTable(){
   const q=(document.getElementById('search-input')?.value||'').toLowerCase();
   const tb=document.getElementById('emp-tbody');
@@ -2279,7 +2336,7 @@ function renderTable(){
   cols.forEach(c=>{const th=document.getElementById('th-'+c);if(!th)return;th.classList.toggle('sort-active',sortCol===c);const ind=th.querySelector('.sort-ind');if(ind)ind.textContent=sortCol===c?(sortDir==='asc'?'▲':'▼'):'';});
   let f=records.filter(r=>(r.name||'').toLowerCase().includes(q)||(r.company||'').toLowerCase().includes(q)||(r.dept||'').toLowerCase().includes(q));
   f=sortRecords(f);
-  if(!f.length){tb.innerHTML=`<tr><td colspan="9" style="text-align:center;color:var(--tx3);padding:20px">No records yet. Click "+ New Assessment" to get started.</td></tr>`;return;}
+  if(!f.length){tb.innerHTML=`<tr><td colspan="10" style="text-align:center;color:var(--tx3);padding:20px">No records yet. Click "+ New Assessment" to get started.</td></tr>`;return;}
   tb.innerHTML=f.map(r=>{
     const risk=r.total<=5?'high':r.total<=10?'mod':'low';
     const fu=r.followup&&r.date?getFuDate(r.date,parseInt(r.followup)):'—';
@@ -2291,7 +2348,7 @@ function renderTable(){
     const noBadge=`<span class="badge badge-warn" style="font-size:.59rem;margin-left:5px" title="No badge number. Required before a plan can be sent to Cadence.">no badge #</span>`;
     const sub=[r.badge?'#'+r.badge:'',r.dept||''].filter(Boolean).join(' · ');
     const isCurrent=!!(currentEmployee&&currentEmployee.id===r.id);
-    return`<tr class="${isCurrent?'row-current':''}"><td><button class="emp-name" onclick="setCurrentEmployee('${r.id}',event)" title="${isCurrent?'Clear this employee as the current one':'Make this the current employee across the suite'}"><strong>${r.name}</strong></button>${r.badge?'':noBadge}<br><span style="font-size:.68rem;color:var(--tx2)">${sub}</span></td>
+    return`<tr class="${isCurrent?'row-current':''}"><td class="cell-light">${rowLightHtml(r)}</td><td><button class="emp-name" onclick="setCurrentEmployee('${r.id}',event)" title="${isCurrent?'Clear this employee as the current one':'Make this the current employee across the suite'}"><strong>${r.name}</strong></button>${r.badge?'':noBadge}<br><span style="font-size:.68rem;color:var(--tx2)">${sub}</span></td>
       <td>${r.date}</td><td>${r.shift||'—'} Shift</td>
       <td><span class="type-chip${r.type==='Initial'?'':' retest'}">${r.type}</span></td>
       <td style="font-weight:800;font-size:1.14rem;color:var(--tx)">${r.total}<span style="font-size:.68rem;font-weight:400;color:var(--tx3)">/15</span></td>
