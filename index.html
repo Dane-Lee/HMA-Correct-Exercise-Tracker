@@ -2851,7 +2851,7 @@ function _buildCalendarPage(chosen,sched){
     <div class="cal-grid">${dayHtml}</div>
     ${restNote}
     ${unresolvedNote}
-    <div class="print-footer">ATI Worksite Solutions — Hendrickson &nbsp;|&nbsp; Generated ${new Date().toLocaleDateString()}<br>These exercises are personalized recommendations. Please perform as directed by your provider.</div>
+    <div class="print-footer">ATI Worksite Solutions${_footerCompany()} &nbsp;|&nbsp; Generated ${new Date().toLocaleDateString()}<br>These exercises are personalized recommendations. Please perform as directed by your provider.</div>
   </div>`;
 }
 
@@ -2900,6 +2900,13 @@ function persistProgram(chosen,sched){
   renderTable();
 }
 
+// The printed footer names the employee's own company. It said "Hendrickson"
+// on every sheet, whoever the record belonged to -- found by the management
+// demo (2026-10-14), whose made-up employees work somewhere else entirely.
+function _footerCompany(){
+  const c=String((currentEmpForSheet&&currentEmpForSheet.company)||'').trim();
+  return c?' — '+c.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):'';
+}
 function _renderPrintSheet(chosen,sched){
   if(!sched)sched=_computeSchedule(chosen,currentEmpForSheet,false);
   persistProgram(chosen,sched);
@@ -2951,7 +2958,7 @@ function _renderPrintSheet(chosen,sched){
         </div>`;
       }).join('');
     })()}
-    <div class="print-footer">ATI Worksite Solutions — Hendrickson &nbsp;|&nbsp; Generated ${new Date().toLocaleDateString()}<br>These exercises are personalized recommendations. Please perform as directed by your provider.</div>
+    <div class="print-footer">ATI Worksite Solutions${_footerCompany()} &nbsp;|&nbsp; Generated ${new Date().toLocaleDateString()}<br>These exercises are personalized recommendations. Please perform as directed by your provider.</div>
     ${_buildCalendarPage(chosen,sched)}`;
   document.getElementById('ex-builder').classList.add('hidden');
   document.getElementById('ex-print').classList.remove('hidden');
