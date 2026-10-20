@@ -1996,22 +1996,28 @@ async function setCurrentEmployee(id,event){
 }
 
 function toastCurrent(emp){
+  toast(emp
+    ?`Current employee: ${emp.name}${emp.badge?' #'+emp.badge:''}`
+    :'Current employee cleared');
+}
+
+function toast(text,ms){
   try{
     const bar=document.createElement('div');
-    bar.textContent=emp
-      ?`Current employee: ${emp.name}${emp.badge?' #'+emp.badge:''}`
-      :'Current employee cleared';
+    bar.textContent=text;
+    bar.setAttribute('role','status');
     bar.style.cssText='position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:9999;'+
       'padding:10px 18px;border-radius:999px;background:rgb(var(--accent));color:#fff;'+
       'font:700 .85rem var(--font-sub),sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.35)';
     document.body.appendChild(bar);
-    setTimeout(()=>bar.remove(),2200);
+    setTimeout(()=>bar.remove(),ms||2200);
   }catch(e){}
 }
 
 async function loadRecords(){
   try{const r=await window.storage.get('hma-records');if(r)records=JSON.parse(r.value);}catch(e){records=[];}
   await loadCurrentEmployee();
+  await takeManualHandoff();
   renderTable();
 }
 async function saveRecords(){try{await window.storage.set('hma-records',JSON.stringify(records));}catch(e){}}
@@ -3059,7 +3065,11 @@ function likelyDuplicates(additions){
   return`\n\nPossible duplicate${hits.length>1?'s':''}: ${hits.length} new record(s) share a badge and date with one already here:\n  ${named.join('\n  ')}${more}\nThey will be added as separate records, not merged.`;
 }
 
-function applyImportedRecords(imported){
+// `handoff`: it came from the Manual's "Send to Tracker", and that click was the
+// decision -- so no "Continue?", and a "Done!" in place of the count. A likely
+// duplicate still asks, because that is the one thing the click could not know.
+function applyImportedRecords(imported,opts){
+  const handoff=!!(opts&&opts.handoff);
   if(!Array.isArray(imported)||!imported.length)return false;
   const valid=imported.filter(r=>r&&r.id);
   if(!valid.length)return false;
@@ -3071,11 +3081,16 @@ function applyImportedRecords(imported){
   if(updates.length)parts.push(`update ${updates.length} existing record(s)`);
   const detail=updates.length?'\n\nUpdates refresh scores, pain, hypermobility and employee details.\nYour exercise plan, observations, quality focus, follow-up and re-test dates are kept.':'';
   const dupes=likelyDuplicates(additions);
-  if(!confirm(`This import will ${parts.join(' and ')}.${detail}${dupes}\n\nContinue?`))return false;
+  if((!handoff||dupes)&&!confirm(`This import will ${parts.join(' and ')}.${detail}${dupes}\n\nContinue?`))return false;
   updates.forEach(r=>{const i=indexById.get(r.id);records[i]=mergeImportedRecord(records[i],r);});
   records=[...additions.map(stampImportedNotes),...records];
   saveRecords();
   renderTable();
+  if(handoff){
+    const who=valid.length===1?`${valid[0].name||'This employee'}'s scores are`:`${valid.length} assessments are`;
+    toast(`Done! ${who} in the Tracker.`,3500);
+    return true;
+  }
   alert(`${additions.length} record(s) added, ${updates.length} record(s) updated.`);
   return true;
 }
@@ -3095,6 +3110,25 @@ function importRecords(event){
     event.target.value='';
   };
   reader.readAsText(file);
+}
+
+// The key the Manual's "Send to Tracker" hands an assessment over under
+// (2026-10-20). A contract with HMA-Manual's src/lib/trackerExport.ts and the
+// suite's store allow-list; test_tracker_handoff.py pins all three.
+const TRACKER_HANDOFF_KEY='hma-tracker-handoff';
+
+// TAKEN, NOT READ, like Cadence-Admin's end of "→ Cadence": emptied as it is
+// picked up, so a reload does not bring the same assessment in twice. Only in
+// the suite -- on its own there is no Manual to hand anything over.
+async function takeManualHandoff(){
+  if(!inSuite())return;
+  let held=null;
+  try{held=await window.storage.get(TRACKER_HANDOFF_KEY);}catch(e){return;}
+  if(!held||!held.value)return;
+  try{await window.storage.set(TRACKER_HANDOFF_KEY,'');}catch(e){}
+  let imported;
+  try{imported=JSON.parse(held.value);}catch(e){return;}
+  applyImportedRecords(imported,{handoff:true});
 }
 
 function copyRecords(evt){
