@@ -2751,6 +2751,11 @@ function autoAdjustSheet(){
 }
 
 // ---- Session scheduler: a "session" = one calendar day; budget ~20 min/day ----
+// WHY 20 MINUTES (the owner, decided while building the Tracker; written here
+// 2026-10-21 because no file had recorded it): an employee likely won't do more
+// than 20 minutes of activity a day, at most. The limit is set to that likely
+// level of involvement and compliance, and Auto-Adjust fits the selections and
+// the daily/weekly schedule as close to it as it can.
 const SESSION_BUDGET_SEC=20*60;
 const SCHED_WORK_DAYS=[1,2,3,4,5];
 const SCHED_TYPE_DAYS={'flexibility':[1,2,3,4,5],'mobility':[1,3,5],'dynamic stabilization':[1,3,5],'static stabilization':[1,3,5],'strength':[1,3,5]};

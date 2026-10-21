@@ -16,7 +16,9 @@ print a personalized exercise plan with a weekly schedule.
 - **Exercise Sheet Builder** — auto-selects exercises from the assessment (mobility focus for low
   scorers, stability focus for hypermobility), detects and resolves cross-category redundancy,
   flags OA-cautionary exercises, supports editable sets/reps, and warns when a session exceeds the
-  20-minute guideline.
+  20-minute guideline. **Why 20:** an employee likely won't do more than 20 minutes of activity a
+  day, so the daily limit is set to that likely level of involvement and compliance, and
+  Auto-Adjust fits the schedule as close to it as it can.
 - **Printable plan** — exercises grouped by movement with images, type badges, frequency, and
   follow-up / re-assessment dates, plus a weekly calendar page. Print to PDF from the browser.
 - **Exercise Library** — searchable reference of all 60 exercises.
