@@ -176,7 +176,7 @@ const classified = new Set([
   ...source.match(/IMPORT_SCORE_FIELDS=\[([^\]]*)\]/)[1].replace(/'/g, "").split(","),
   ...source.match(/IMPORT_DETAIL_FIELDS=\[([^\]]*)\]/)[1].replace(/'/g, "").split(","),
   // deliberately preserved: authored in the Tracker after import
-  "plan", "pa", "followup", "retest", "observations", "qualityFocus", "program"
+  "plan", "pa", "pa_done", "followup", "retest", "observations", "qualityFocus", "program"
 ]);
 const unclassified = formFields.filter((f) => !classified.has(f));
 assert.deepEqual(

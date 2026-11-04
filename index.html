@@ -763,19 +763,29 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
    lights exception (DESIGN-RULES §0) reaches these rows by his own word, and
    nothing else in the Tracker may use them. test_status_light_colours.py
    fails if the copies drift. */
-:root{--light-ready:26 111 214;--light-good:19 135 75}
-:root[data-theme="dark"]{--light-ready:77 163 255;--light-good:52 210 123}
+:root{--light-ready:26 111 214;--light-good:19 135 75;--light-hold:176 104 0;--light-pain:200 16 46;--light-empty:255 255 255}
+:root[data-theme="dark"]{--light-ready:77 163 255;--light-good:52 210 123;--light-hold:255 184 28;--light-pain:255 64 84;--light-empty:236 240 244}
 .emp-table th.th-light,.emp-table td.cell-light{width:1px;padding-left:14px;padding-right:2px}
 .row-light{display:inline-block;width:15px;height:15px;border-radius:999px;vertical-align:middle;
   background:rgb(var(--lamp));border:1px solid rgb(var(--lamp));box-shadow:0 0 9px 1px rgb(var(--lamp) / .55)}
+/* The seven states (owner, 2026-11-03/04; ONE-APP-PLAN §6). Four small lights
+   per row when the suite serves this page -- HMA-Manual, HMA Tracker, HMA
+   Cadence, HMA Overlay, for this employee -- and the Tracker's own light alone
+   anywhere else. Flashing red is a new pain report nobody has opened: slow,
+   and a steady ring for reduced motion. Off is only "can't open here". */
+.row-lights{display:inline-flex;gap:5px;vertical-align:middle}
+.row-lights .row-light{width:12px;height:12px}
+.row-light[data-status="alert"],.row-light[data-status="pain"]{--lamp:var(--light-pain)}
+.row-light[data-status="hold"]{--lamp:var(--light-hold)}
 .row-light[data-status="ready"]{--lamp:var(--light-ready)}
 .row-light[data-status="good"]{--lamp:var(--light-good)}
-/* A missing badge number: the same colour, breathing -- the home screen's
-   signal for exactly this, at its 2.4s, and steady for reduced motion. */
-.row-light[data-pulse="true"]{animation:row-lamp-pulse 2.4s ease-in-out infinite}
-@keyframes row-lamp-pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.row-light[data-status="empty"]{--lamp:var(--light-empty);border-color:rgb(0 0 0 / .32)}
+:root[data-theme="dark"] .row-light[data-status="empty"]{border-color:rgb(var(--lamp))}
+.row-light[data-status="off"]{background:transparent;box-shadow:none;border-color:rgb(128 128 128 / .55)}
+.row-light[data-status="alert"]{animation:row-lamp-flash 1.6s ease-in-out infinite}
+@keyframes row-lamp-flash{0%,100%{opacity:1}50%{opacity:.35}}
 @media (prefers-reduced-motion:reduce){
-  .row-light[data-pulse="true"]{animation:none;outline:2px solid rgb(var(--lamp));outline-offset:2px}
+  .row-light[data-status="alert"]{animation:none;outline:2px solid rgb(var(--lamp));outline-offset:2px}
 }
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
   clip:rect(0,0,0,0);white-space:nowrap;border:0}
@@ -1136,6 +1146,7 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
         <select id="f-retest"><option value="">None</option><option value="1">1 month</option><option value="2">2 months</option><option value="3">3 months</option><option value="4" selected>4 months</option><option value="5">5 months</option><option value="6">6 months</option></select></div>
       <div class="form-group"><label>Corrective Plan Created</label><select id="f-plan"><option value="No">No</option><option value="Yes">Yes</option></select></div>
       <div class="form-group"><label>Physical Assessment Opened</label><select id="f-pa"><option value="No">No</option><option value="Yes">Yes</option></select></div>
+      <div class="form-group"><label>Physical Assessment Done</label><select id="f-pa-done" disabled title="Only for a record with pain reported"><option value="No">No</option><option value="Yes">Yes</option></select></div>
     </div>
     <div class="flex-end">
       <button class="btn btn-outline" onclick="clearForm()">Clear</button>
@@ -2019,8 +2030,9 @@ async function loadRecords(){
   await loadCurrentEmployee();
   await takeManualHandoff();
   renderTable();
+  refreshSuiteRowLights();
 }
-async function saveRecords(){try{await window.storage.set('hma-records',JSON.stringify(records));}catch(e){}}
+async function saveRecords(){try{await window.storage.set('hma-records',JSON.stringify(records));}catch(e){}refreshSuiteRowLights();}
 async function loadImageRegistry(){
   try{const r=await window.storage.get('hma-images-v2');if(r)IMAGE_REGISTRY=JSON.parse(r.value);}
   catch(e){try{const r2=await window.storage.get('hma-images');if(r2)IMAGE_REGISTRY=JSON.parse(r2.value);}catch(e2){IMAGE_REGISTRY={};}}
@@ -2147,6 +2159,11 @@ function updateTotals(){
   const ps=document.getElementById('f-plan'),pa=document.getElementById('f-pa');
   if(hasPain){ps.value='No';ps.disabled=true;ps.className='field-locked-no';pa.value='Yes';pa.disabled=true;pa.className='field-locked-yes';}
   else{ps.value=total<11?'Yes':'No';ps.disabled=false;ps.className='';pa.value='No';pa.disabled=false;pa.className='';}
+  // Pain stays red everywhere until this says Yes (owner, 2026-11-04). It only
+  // means something with pain reported, so without pain it is disabled, not gone.
+  const pd=document.getElementById('f-pa-done');
+  if(hasPain){pd.disabled=false;pd.title='Mark Yes once the physical assessment is done';}
+  else{pd.value='No';pd.disabled=true;pd.title='Only for a record with pain reported';}
 }
 
 function getScoresSnapshot(){const s={};MOVEMENTS.forEach(m=>{s[m.key]=[{...scores[m.key][0]},{...scores[m.key][1]}];});return s;}
@@ -2165,7 +2182,7 @@ function getFormData(){
     scores:snap,total:calcTotal(snap),hypermobile:getHyperSnapshot(),
     notes:document.getElementById('f-notes').value.trim(),
     followup:document.getElementById('f-followup').value,retest:document.getElementById('f-retest').value,
-    plan:document.getElementById('f-plan').value,pa:document.getElementById('f-pa').value,
+    plan:document.getElementById('f-plan').value,pa:document.getElementById('f-pa').value,pa_done:document.getElementById('f-pa-done').value,
     observations:JSON.parse(JSON.stringify(observations)),qualityFocus:JSON.parse(JSON.stringify(qualityFocus))};
 }
 
@@ -2196,6 +2213,7 @@ function clearForm(){
   document.getElementById('f-type').value='Initial';document.getElementById('f-followup').value='6';document.getElementById('f-retest').value='4';
   const ps=document.getElementById('f-plan'),pa=document.getElementById('f-pa');
   ps.value='No';ps.disabled=false;ps.className='';pa.value='No';pa.disabled=false;pa.className='';
+  const pd=document.getElementById('f-pa-done');pd.value='No';pd.disabled=true;
   document.getElementById('f-date').valueAsDate=new Date();
   document.getElementById('pain-flag').classList.remove('visible');
   document.getElementById('hyper-summary').classList.remove('visible');
@@ -2235,6 +2253,8 @@ function editRecord(id){
   pa.value=r.pa||'No';pa.disabled=false;pa.className='';
   loadScoresSnapshot(r.scores);
   setHypermobile(r.hypermobile||{});
+  // After the scores, which decide whether it can be set at all.
+  const pdone=document.getElementById('f-pa-done');if(!pdone.disabled)pdone.value=r.pa_done||'No';
   const rObs=r.observations||{};const rQF=r.qualityFocus||{};
   MOVEMENTS.forEach(m=>{
     observations[m.key]={};qualityFocus[m.key]=[];
@@ -2311,30 +2331,53 @@ function sortRecords(arr){
 // they still agree.
 const LIGHT_STAMP_INTRODUCED_AT='2026-09-29T17:33:10Z';
 const LIGHT_LOW_RISK_MIN_TOTAL=11;
+const LIGHT_STATES=['alert','pain','hold','ready','good','empty','off'];
+const LIGHT_NAMES={alert:'Flashing Red',pain:'Red',hold:'Amber',ready:'Blue',good:'Green',empty:'White',off:'Off'};
+// The Tracker's own light for one record: suite_status.py's employee_lights()
+// "records" rules, restated. Used alone wherever the suite is not serving this
+// page, and pinned to the suite's by tests/row-light.test.mjs.
 function recordLight(r){
-  const pain=Object.values((r&&r.scores)||{}).some(pair=>Array.isArray(pair)&&pair.some(side=>side&&side.pain));
+  const sides=Object.values((r&&r.scores)||{}).filter(Array.isArray).flat().filter(Boolean);
+  const scored=sides.some(side=>side.val!==null&&side.val!==undefined);
+  if(!scored)return{status:'empty',detail:['No scores yet']};
+  const pain=sides.some(side=>side.pain);
   const lowRisk=typeof r.total==='number'&&r.total>=LIGHT_LOW_RISK_MIN_TOTAL;
   const prog=r.program&&typeof r.program==='object'?r.program:null;
   const hasProgram=!!(prog&&Array.isArray(prog.exercises)&&prog.exercises.length);
   const finalized=String((prog&&prog.finalized_at)||'');
   const sent=!!(prog&&(prog.sent_to_cadence_at||finalized===''||finalized<LIGHT_STAMP_INTRODUCED_AT));
-  const needsProgram=!hasProgram&&!pain&&!lowRisk;
-  const notSent=hasProgram&&!pain&&!sent;
-  const noBadge=!String(r.badge||'').trim();
-  const detail=[];
-  if(needsProgram)detail.push('Needs a program built');
-  if(notSent)detail.push('Program not sent to Cadence');
-  if(noBadge)detail.push('No badge number');
-  const status=needsProgram||notSent?'ready':'good';
-  if(!detail.length)detail.push('Nothing waiting');
-  return{status,detail,pulse:noBadge};
+  const reasons=[];
+  if(pain&&r.pa_done!=='Yes')reasons.push(['pain','Pain flagged: physical assessment not marked done']);
+  if(!String(r.badge||'').trim())reasons.push(['hold',"No badge number, so Cadence can't match them"]);
+  if(!hasProgram&&!pain&&!lowRisk)reasons.push(['ready','Needs a program built']);
+  if(hasProgram&&!pain&&!sent)reasons.push(['ready','Program not sent to Cadence']);
+  if(!reasons.length)return{status:'good',detail:[pain?'Referred for a physical assessment':!hasProgram?'Low-risk score: no program needed':'Program sent']};
+  const status=reasons.map(x=>x[0]).sort((a,b)=>LIGHT_STATES.indexOf(a)-LIGHT_STATES.indexOf(b))[0];
+  return{status,detail:reasons.map(x=>x[1])};
 }
+function oneLightHtml(program,l){
+  const text=(program?program+' \u2014 ':'')+LIGHT_NAMES[l.status]+': '+l.detail.join(' \u00b7 ');
+  return`<span class="row-light" role="img" data-status="${l.status}" aria-label="${text}" title="${text}"></span>`;
+}
+// The suite's four lights per employee (owner, 2026-11-03: "Both"), keyed by
+// record id; null until the suite answers, and always null off this machine.
+let suiteRowLights=null;
+const ROW_PROGRAMS=[['assess','HMA-Manual'],['records','HMA Tracker'],['deliver','HMA Cadence'],['jobs','HMA Overlay']];
 function rowLightHtml(r){
-  const l=recordLight(r);
-  const text=(l.status==='ready'?'Ready':'Good')+': '+l.detail.join(' \u00b7 ');
-  return`<span class="row-light" role="img" data-status="${l.status}"${l.pulse?' data-pulse="true"':''} aria-label="${text}" title="${text}"></span>`;
+  const four=suiteRowLights&&suiteRowLights[r.id];
+  if(!four)return oneLightHtml('',recordLight(r));
+  return`<span class="row-lights">${ROW_PROGRAMS.map(([k,name])=>oneLightHtml(name,four[k])).join('')}</span>`;
 }
-
+function refreshSuiteRowLights(){
+  let here=false;
+  try{here=/^https?:$/.test(location.protocol)&&/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);}catch(e){}
+  if(!here||typeof fetch!=='function')return;
+  fetch('/api/suite/status',{credentials:'same-origin',headers:{Accept:'application/json'}})
+    .then(res=>res.ok?res.json():null)
+    .then(j=>{suiteRowLights=j&&j.employees||null;renderTable();})
+    .catch(()=>{});
+}
+if(typeof window!=='undefined')window.addEventListener('focus',refreshSuiteRowLights);
 function renderTable(){
   const q=(document.getElementById('search-input')?.value||'').toLowerCase();
   const tb=document.getElementById('emp-tbody');
