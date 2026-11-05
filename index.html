@@ -966,10 +966,14 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
    the sole exception and carry their own note.
    ============================================================================ */
 .print-preview{background:#fff;border:1px solid #ccc;padding:20px;max-width:760px;margin:0 auto;font-family:'Bitter',Georgia,serif}
-.print-header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:3px solid #e4002b}
+.print-header{display:grid;grid-template-columns:1fr auto 1fr;column-gap:16px;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:3px solid #e4002b}
+/* Owner, 2026-11-05: the logo and the title were "basically right on top of each
+   other" -- the 800x160 logo at 44px is 220px wide, wider than its share of the
+   row, so it ran into the title. Smaller logo, a little smaller title, a gap. */
+.print-header img{height:34px;width:auto;display:block}
 .print-logo-box{background:#1a1a1a;color:#fff;padding:6px 14px;font-weight:900;font-size:28px;letter-spacing:2px}
 .print-logo-sub{font-size:14px;color:#555;text-align:center;margin-top:2px}
-.print-title{font-size:35px;font-weight:700;text-transform:uppercase;color:#e4002b;letter-spacing:1px;font-family:'Barlow Condensed',sans-serif}
+.print-title{font-size:30px;font-weight:700;text-transform:uppercase;color:#e4002b;letter-spacing:1px;font-family:'Barlow Condensed',sans-serif}
 .print-running-header{display:none}
 .print-emp-info{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;font-size:19px}
 .print-info-item{border-bottom:1px solid #333;padding-bottom:2px}
@@ -2901,7 +2905,7 @@ function _buildCalendarPage(chosen,sched){
   const restNote=restDays.length?`<p style="margin:8px 0 0;font-size:13px;color:#888;text-align:center">Day${restDays.length>1?'s':''} ${restDays.join(' & ')} — Rest</p>`:'';
   const unresolvedNote=sched.unresolved?`<p role="alert" style="margin:8px 0 0;font-size:12px;color:#cc2200;text-align:center;font-weight:700">⚠ A day still exceeds 20 min after adjustment — manual review recommended.</p>`:'';
   return`<div style="page-break-before:always">
-    <div class="print-header"><div><img src="/images/ati-logo-positive.png" style="height:44px;width:auto"></div><div class="print-title">Weekly Exercise Schedule</div><div></div></div>
+    <div class="print-header"><div><img src="/images/ati-logo-positive.png" alt="ATI Worksite Solutions"></div><div class="print-title">Weekly Exercise Schedule</div><div></div></div>
     <div class="cal-grid">${dayHtml}</div>
     ${restNote}
     ${unresolvedNote}
@@ -2976,7 +2980,7 @@ function _renderPrintSheet(chosen,sched){
   document.getElementById('print-sheet').innerHTML=`
     <div class="print-running-header">${runHead}</div>
     <div class="print-header">
-      <div><img src="/images/ati-logo-positive.png" style="height:44px;width:auto"></div>
+      <div><img src="/images/ati-logo-positive.png" alt="ATI Worksite Solutions"></div>
       <div class="print-title">Corrective Exercise Plan</div>
       <div></div>
     </div>
