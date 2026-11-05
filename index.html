@@ -773,8 +773,9 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
    Cadence, HMA Overlay, for this employee -- and the Tracker's own light alone
    anywhere else. Flashing red is a new pain report nobody has opened: slow,
    and a steady ring for reduced motion. Off is only "can't open here". */
-.row-lights{display:inline-flex;gap:5px;vertical-align:middle}
-.row-lights .row-light{width:12px;height:12px}
+/* 18px, from 12 (owner, 2026-11-05: "The circumference overall for the lights is too small.") */
+.row-lights{display:inline-flex;gap:7px;vertical-align:middle}
+.row-lights .row-light{width:18px;height:18px}
 .row-light[data-status="alert"],.row-light[data-status="pain"]{--lamp:var(--light-pain)}
 .row-light[data-status="hold"]{--lamp:var(--light-hold)}
 .row-light[data-status="ready"]{--lamp:var(--light-ready)}
