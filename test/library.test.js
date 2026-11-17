@@ -17,7 +17,7 @@ import { loadLibrary, allExercises, imagesDir } from './extract.js';
 const MAPS = ['EX_TYPE', 'EX_DURATION', 'EXERCISE_TARGETS', 'EXERCISE_CATEGORY'];
 const lib = loadLibrary([
   'DEFAULT_IMAGES', 'EXERCISES', 'BALANCE_EX', 'CORE_EX', 'CAT_EXERCISES',
-  ...MAPS,
+  ...MAPS, 'EX_STAGE',
 ]);
 const ex = allExercises(lib);
 const ids = Object.keys(ex);
@@ -58,6 +58,24 @@ test('exercise ids are unique across every group', () => {
     }
   }
   assert.deepEqual(dupes, []);
+});
+
+/* A score of 1 gets strength work only from exercises classed 'activate'
+   (owner, 2026-11-17). An unclassed strength exercise would silently never be
+   offered at a 1 -- or, if the rule were inverted, be offered when it loads the
+   pattern -- so every stabilization and strength exercise must carry a stage,
+   and stretching and mobility must not. */
+test('every strength and stabilization exercise has a stage, and nothing else does', () => {
+  const strength = ['static stabilization', 'dynamic stabilization', 'strength'];
+  const wrong = [];
+  for (const id of ids) {
+    const needs = strength.includes(lib.EX_TYPE[id]);
+    const stage = lib.EX_STAGE[id];
+    if (needs && !['activate', 'integrate'].includes(stage)) wrong.push(`${id} needs activate or integrate`);
+    if (!needs && stage !== undefined) wrong.push(`${id} is ${lib.EX_TYPE[id]} and must have no stage`);
+  }
+  for (const id of Object.keys(lib.EX_STAGE)) if (!(id in ex)) wrong.push(`EX_STAGE.${id} is not an exercise`);
+  assert.deepEqual(wrong, []);
 });
 
 test('retired ids are not reused', () => {

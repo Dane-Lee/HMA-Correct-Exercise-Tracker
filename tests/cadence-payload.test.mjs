@@ -14,7 +14,7 @@ const end = html.indexOf("function exportPlanForCadence(");
 assert.ok(start > 0 && end > start, "could not locate the payload-builder block");
 
 // Everything the block leans on from the wider app.
-const prelude = ["IMAGE_REGISTRY", "EXERCISE_CATEGORY", "EX_TYPE", "EX_DURATION", "SCHED_WORK_DAYS", "SESSION_BUDGET_SEC"]
+const prelude = ["IMAGE_REGISTRY", "EXERCISE_CATEGORY", "EX_TYPE", "EX_DURATION", "SCHED_WORK_DAYS", "SESSION_BUDGET_SEC", "typeLabel"]
   .map((name) => {
     // No backslash escapes: this string passes through several layers before RegExp sees it.
     const m = html.match(new RegExp("(?:const|let)[ ]+" + name + "[ ]*=[ ]*"));
@@ -102,6 +102,11 @@ assert.ok(!String(p.exercises[0].image_ref ?? "").includes("/"), "image_ref is a
 
 // 5. The gates. Each of these would produce a plan Cadence rejects, or a plan for
 //    someone who should have been referred instead of programmed.
+// Assessment types became Initial / Follow-Up / Re-Assessment on 2026-11-17.
+// A record saved as "Retest" before then is a re-assessment, and says so.
+assert.equal(p.assessment.assessment_type, "Initial");
+assert.equal(buildPlanPayload(record({ type: "Retest" })).assessment.assessment_type, "Re-Assessment");
+assert.equal(buildPlanPayload(record({ type: "Follow-Up" })).assessment.assessment_type, "Follow-Up");
 assert.throws(() => buildPlanPayload(record({ program: undefined })), /no finalized exercise program/i);
 assert.throws(() => buildPlanPayload(record({ badge: "" })), /badge number is required/i);
 // A low-risk total auto-sets plan to "No" (updateTotals, the 11+ band). That must NOT

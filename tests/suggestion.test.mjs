@@ -18,7 +18,7 @@ const html = readFileSync(fileURLToPath(new URL("../index.html", import.meta.url
 // together so the functions see the consts they close over.
 const start = html.indexOf("// ── MOBILITY-FOCUSED SUGGESTIONS");
 const hyperStart = html.indexOf("const HYPER_SUGGEST=");
-const end = html.indexOf("const MOVEMENT_FAULTS=");
+const end = html.indexOf("function faultIdAt(");
 assert.ok(hyperStart > 0 && start > 0 && end > start, "could not locate the library block");
 
 const block = html.slice(Math.min(hyperStart, start), end)
@@ -27,12 +27,13 @@ const block = html.slice(Math.min(hyperStart, start), end)
   ;
 
 const api = new Function(
-  `${block}; return { suggestForMovement, poolFor, EX_TYPE, EXERCISE_TARGETS, EXERCISE_CATEGORY,
-     CAT_EXERCISES, MOBILITY_SUGGEST, HYPER_SUGGEST, RESTORE_TYPES, BUILD_TYPES,
-     FAULT_IMPAIRMENT, MODIFIER_FAULTS };`,
+  `${block}; return { suggestForMovement, suggestPlan, coverKey, poolFor, EX_TYPE, EX_STAGE,
+     EXERCISE_TARGETS, EXERCISE_CATEGORY, CAT_EXERCISES, MOBILITY_SUGGEST, HYPER_SUGGEST,
+     RESTORE_TYPES, BUILD_TYPES, FAULT_IMPAIRMENT, MODIFIER_FAULTS, MOVEMENT_FAULTS };`,
 )();
-const { suggestForMovement, EX_TYPE, EXERCISE_TARGETS, EXERCISE_CATEGORY,
-        RESTORE_TYPES, BUILD_TYPES, FAULT_IMPAIRMENT, MODIFIER_FAULTS } = api;
+const { suggestForMovement, suggestPlan, coverKey, EX_TYPE, EX_STAGE, EXERCISE_TARGETS,
+        EXERCISE_CATEGORY, RESTORE_TYPES, BUILD_TYPES, FAULT_IMPAIRMENT, MODIFIER_FAULTS,
+        MOVEMENT_FAULTS } = api;
 
 const KEYS = ["lunge", "sld", "shoulder", "trunk", "cervical"];
 const typesOf = (ids) => ids.map((id) => EX_TYPE[id]);
@@ -48,12 +49,24 @@ for (const k of KEYS) {
 }
 
 // --- and the direction must be clinically right, not merely different -------
+// A 1 restores motion first AND gets strength work -- but only activation, never
+// the loaded pattern (owner, 2026-11-17: "a score of 1 still needs some strength
+// work, but appropriate strength work").
+const lowLoadOnly = (label, ids) => {
+  for (const id of ids) {
+    if (BUILD_TYPES.includes(EX_TYPE[id])) {
+      assert.equal(EX_STAGE[id], "activate", `${label}: ${id} loads the pattern at a score of 1`);
+    }
+  }
+};
 for (const k of KEYS) {
   const restricted = suggestForMovement(k, 1, 1, false);
   const compensating = suggestForMovement(k, 2, 2, false);
-  for (const t of typesOf(restricted.ids)) {
-    assert.ok(RESTORE_TYPES.includes(t), `${k}: a restricted score must not be loaded — got ${t}`);
-  }
+  assert.ok(restricted.ids.some((id) => RESTORE_TYPES.includes(EX_TYPE[id])),
+    `${k}: a restricted score should restore motion`);
+  assert.ok(restricted.ids.some((id) => BUILD_TYPES.includes(EX_TYPE[id])),
+    `${k}: a restricted score still needs some strength work`);
+  lowLoadOnly(k, restricted.ids);
   for (const t of typesOf(compensating.ids)) {
     assert.ok(BUILD_TYPES.includes(t), `${k}: full range with compensation should build — got ${t}`);
   }
@@ -153,11 +166,12 @@ const fhp = suggestForMovement("cervical", 2, 2, false, ["cerv-forward-head"]);
 assert.ok(fhp.ids.some((id) => EXERCISE_TARGETS[id].startsWith("thoracic")),
   "forward-head posture should reach thoracic work, not only cervical");
 
-// At restore phase the thoracic exercises that live under trunk become
-// reachable, which is the cross-category jump in its plainest form.
+// Restricted, it still reaches the thorax. Since 2026-11-17 a 1 gets one stretch
+// and one strengthening pick, so the thoracic reach comes through the
+// strengthening pick rather than a second stretch.
 const fhpRestricted = suggestForMovement("cervical", 1, 1, false, ["cerv-forward-head"]);
-assert.ok(fhpRestricted.ids.some((id) => EXERCISE_CATEGORY[id] === "trunk"),
-  "a restricted forward-head pattern should prescribe trunk-category thoracic work");
+assert.ok(fhpRestricted.ids.some((id) => EXERCISE_TARGETS[id].startsWith("thoracic")),
+  "a restricted forward-head pattern should still reach thoracic work");
 
 const cervRom = suggestForMovement("cervical", 1, 1, false, ["cerv-rom"]);
 assert.ok(cervRom.ids.length, "a cervical ROM limit must still find restore-phase work");
@@ -169,10 +183,9 @@ assert.ok(footFlat.ids.includes("s1"),
 
 // --- severity still sets the phase; faults choose within it (owner Q3) ------
 const valgusRestricted = suggestForMovement("sld", 1, 1, false, ["sld-knee-valgus"]);
-for (const t of valgusRestricted.ids.map((id) => EX_TYPE[id])) {
-  assert.ok(RESTORE_TYPES.includes(t),
-    `a restricted pattern must not be loaded even when the fault implies weakness — got ${t}`);
-}
+lowLoadOnly("restricted valgus", valgusRestricted.ids);
+assert.ok(valgusRestricted.ids.some((id) => ["hip-abductors", "glutes"].includes(EXERCISE_TARGETS[id])),
+  "a restricted valgus pattern now gets low-load glute or abductor work, not stretching alone");
 for (const t of valgus.ids.map((id) => EX_TYPE[id])) {
   assert.ok(BUILD_TYPES.includes(t), "full range with compensation should build");
 }
@@ -196,8 +209,13 @@ assert.ok(roundedOnly.ids.some((id) => RESTORE_TYPES.includes(EX_TYPE[id])),
 // hip-abductors has no flexibility exercise, so a restricted hips-level fault
 // cannot be answered directly.
 const hipsRestricted = suggestForMovement("sld", 1, 1, false, ["sld-hips-level"]);
-assert.ok(hipsRestricted.ids.length, "must fall back rather than return nothing");
-assert.equal(hipsRestricted.driver, "severity", "and should say it fell back");
+const hipsStretch = hipsRestricted.ids.find((id) => RESTORE_TYPES.includes(EX_TYPE[id]));
+assert.ok(hipsStretch, "the stretch must fall back rather than go missing");
+assert.equal(hipsRestricted.sources[hipsStretch], "score", "and should say it fell back");
+// ...while the strengthening pick answers the fault with low-load abductor work.
+assert.ok(hipsRestricted.ids.some((id) => EXERCISE_TARGETS[id] === "hip-abductors"),
+  "a restricted hip drop should get abductor activation");
+lowLoadOnly("restricted hip drop", hipsRestricted.ids);
 
 // --- ranking: an impairment two faults agree on outranks one -----------------
 const agreeing = suggestForMovement("sld", 2, 2, false,
@@ -213,6 +231,71 @@ for (let mask = 0; mask < (1 << lungeFaults.length); mask++) {
   for (const score of [1, 2]) {
     faultPlans.add(suggestForMovement("lunge", score, score, false, ticked).ids.sort().join(","));
   }
+}
+
+// ===================== one sheet, not five lists (2026-11-17) ==============
+
+// --- the owner's example: two hip flexor stretches from two movements --------
+// Lunge takes the hip flexor stretch; SL Dip, asymmetric so it has a second
+// stretch to choose, must take something else and say what already covers it.
+{
+  const plan = suggestPlan([
+    { key: "lunge", left: 1, right: 1 },
+    { key: "sld", left: 1, right: 2 },
+  ]);
+  const flexorStretches = [...plan.lunge.ids, ...plan.sld.ids]
+    .filter((id) => coverKey(id) === "hip-flexors::lengthen");
+  assert.equal(flexorStretches.length, 1, "one hip flexor stretch on the sheet, not two");
+  assert.equal(plan.sld.ids.length, 3, "SL Dip still gets its three picks");
+  assert.ok(plan.sld.covered.some((c) => c.target === "hip-flexors" && c.byMovement === "lunge"),
+    "and its reasoning names the Lunge stretch that covers it");
+}
+
+// --- a covered need frees the pick for a different one ----------------------
+// Both movements want the calf stretch. It appears once; the other movement keeps
+// its full count by taking a different area instead.
+{
+  const plan = suggestPlan([
+    { key: "lunge", left: 1, right: 1, faultIds: ["lunge-foot-flat"] },
+    { key: "sld", left: 1, right: 1, faultIds: ["sld-knee-valgus"] },
+  ]);
+  const all = [...plan.lunge.ids, ...plan.sld.ids];
+  assert.equal(all.filter((id) => id === "s1").length, 1, "the calf stretch appears once");
+  assert.equal(plan.lunge.ids.length, 2, "lunge still gets two picks");
+  assert.ok(plan.lunge.covered.some((c) => c.byId === "s1"), "lunge says the calf stretch covers it");
+}
+
+// --- the worse movement gets first claim on a shared need --------------------
+{
+  const plan = suggestPlan([
+    { key: "lunge", left: 1, right: 1, faultIds: ["lunge-foot-flat"] },
+    { key: "sld", left: 1, right: 2, faultIds: ["sld-foot-roll"] },
+  ]);
+  assert.ok(plan.sld.ids.includes("s1"), "SL Dip is asymmetric, so it picks first and keeps the calf stretch");
+}
+
+// --- across many sheets: never two picks for the same area the same way -------
+// A stretch and a strengthener of one area may both appear; two stretches may not.
+{
+  let seed = 7;
+  const rnd = (n) => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed % n; };
+  let sheets = 0;
+  for (let i = 0; i < 4000; i++) {
+    const entries = KEYS.map((key) => {
+      const faults = MOVEMENT_FAULTS[key].map((f) => f.id).filter(() => rnd(3) === 0);
+      return { key, left: 1 + rnd(3), right: 1 + rnd(3), isHyper: rnd(12) === 0, faultIds: faults };
+    });
+    const plan = suggestPlan(entries);
+    const ids = KEYS.flatMap((k) => plan[k].ids);
+    const keys = ids.map(coverKey);
+    assert.equal(new Set(keys).size, keys.length, `duplicate coverage on a sheet: ${ids.join(",")}`);
+    assert.equal(new Set(ids).size, ids.length, `an exercise picked twice: ${ids.join(",")}`);
+    for (const e of entries) {
+      if (Math.min(e.left, e.right) <= 1) lowLoadOnly(`sheet ${i} ${e.key}`, plan[e.key].ids);
+    }
+    sheets++;
+  }
+  console.log(`  random whole sheets checked for duplicate coverage: ${sheets}`);
 }
 
 console.log(`All suggestion checks passed.`);

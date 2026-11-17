@@ -817,8 +817,21 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
 .type-chip.retest{background:rgb(var(--bad-tint));color:rgb(var(--accent-deep))}
 
 /* ---------- EXERCISE BUILDER ---------- */
-.ex-category{margin-bottom:14px;border-radius:var(--r-input);overflow:hidden;
-  border:1px solid var(--rim)}
+/* EACH MOVEMENT COLLAPSES. Owner, 2026-11-17: "if a movement does not require
+   anything for the exercise sheet, then it's closed in the Exercise Sheet
+   Builder and reduces visual clutter." A section opens when something in it is
+   selected. No overflow:hidden on the box -- a closed section is only its
+   header, and that clipped the header's ⓘ -- so the corners are rounded on the
+   header and the grid instead. */
+.ex-category{margin-bottom:14px;border-radius:var(--r-input);border:1px solid var(--rim)}
+.ex-category>summary{list-style:none;cursor:pointer;border-radius:calc(var(--r-input) - 1px)}
+.ex-category>summary::-webkit-details-marker{display:none}
+.ex-category>summary:focus-visible{outline:2px solid rgb(var(--accent));outline-offset:-2px}
+.ex-category[open]>summary{border-bottom-left-radius:0;border-bottom-right-radius:0}
+.ex-category>.ex-grid{overflow:hidden;
+  border-radius:0 0 calc(var(--r-input) - 1px) calc(var(--r-input) - 1px)}
+.ex-chev{font-size:1.1rem;line-height:1;color:var(--tx2);transition:transform .15s}
+.ex-category[open] .ex-chev{transform:rotate(90deg)}
 .ex-cat-header{background:var(--panel-mid);color:var(--tx);padding:11px 16px;font-size:.86rem;
   font-weight:700;text-transform:none;letter-spacing:0;display:flex;align-items:center;
   justify-content:space-between;border-left:4px solid var(--rim);font-family:inherit}
@@ -837,10 +850,6 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
 .ex-item.selected .ex-check{background:rgb(var(--accent));border-color:transparent;color:#fff}
 .ex-thumb{width:72px;height:60px;object-fit:contain;border-radius:8px;flex-shrink:0;
   border:1px solid var(--rim);background:var(--panel)}
-/* The reasoning behind an auto-suggestion, shown under the category header.
-   Quiet by design — it explains, it does not compete with the exercise list. */
-.ex-why{padding:7px 12px;font-size:.68rem;line-height:1.45;color:var(--tx2);
-  background:var(--panel);border-bottom:1px solid var(--rim)}
 .sets-reps-edit{display:none;width:100%;align-items:center;gap:8px;padding:6px 0 2px 27px;
   border-top:1px dashed rgb(var(--accent) / .35);margin-top:4px}
 .ex-item.selected .sets-reps-edit{display:flex}
@@ -1126,7 +1135,7 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
       <div class="form-group"><label>Shift</label><select id="f-shift"><option value="1st">1st Shift</option><option value="2nd">2nd Shift</option><option value="3rd">3rd Shift</option></select></div>
     </div>
     <div class="form-row">
-      <div class="form-group" style="max-width:200px"><label>Assessment Type</label><select id="f-type"><option value="Initial">Initial</option><option value="Retest">Retest</option></select></div>
+      <div class="form-group" style="max-width:200px"><label>Assessment Type</label><select id="f-type"><option value="Initial">Initial</option><option value="Follow-Up">Follow-Up</option><option value="Re-Assessment">Re-Assessment</option></select></div>
     </div>
     <div class="section-divider">Movement Scores</div>
     <div class="pain-flag" id="pain-flag"><span style="font-size:25px">⚑</span><span>Pain reported — Physical Assessment auto-opened. Corrective Plan locked to No per protocol.</span></div>
@@ -1145,9 +1154,9 @@ h3,h4,.total-label,.ex-cat-header,.lib-name{font-family:var(--font-sub);font-wei
       <div class="form-group" style="flex:2"><label>Additional Comments / Past MSK Injuries</label><textarea class="notes-area" id="f-notes" rows="3"></textarea></div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label>Follow-up In</label>
+      <div class="form-group"><label>Follow-Up In</label>
         <select id="f-followup"><option value="">None</option><option value="1">1 week</option><option value="2">2 weeks</option><option value="3">3 weeks</option><option value="4">4 weeks</option><option value="5">5 weeks</option><option value="6" selected>6 weeks</option><option value="8">8 weeks</option></select></div>
-      <div class="form-group"><label>Retest In</label>
+      <div class="form-group"><label>Re-Assessment In</label>
         <select id="f-retest"><option value="">None</option><option value="1">1 month</option><option value="2">2 months</option><option value="3">3 months</option><option value="4" selected>4 months</option><option value="5">5 months</option><option value="6">6 months</option></select></div>
       <div class="form-group"><label>Corrective Plan Created</label><select id="f-plan"><option value="No">No</option><option value="Yes">Yes</option></select></div>
       <div class="form-group"><label>Physical Assessment Opened</label><select id="f-pa"><option value="No">No</option><option value="Yes">Yes</option></select></div>
@@ -1614,78 +1623,148 @@ function poolFor(movementKey,types,curated){
     .sort((a,b)=>rank(a)-rank(b));
 }
 
-/* Every exercise in the library, whatever category it sits in, whose target is
-   one of the impairments named — ranked by how many of the ticked faults point
-   at that impairment, so a finding two faults agree on outranks one only a
-   single fault raised. Ties break toward the movement's own category, which
-   keeps the sheet coherent when the evidence is indifferent. */
-function faultDrivenPool(movementKey,targets,types){
-  const weight={};
-  targets.forEach(t=>{weight[t]=(weight[t]||0)+1;});
-  const ids=Object.keys(EXERCISE_TARGETS).filter(id=>
-    weight[EXERCISE_TARGETS[id]]&&types.includes(EX_TYPE[id]));
-  return ids.sort((a,b)=>
-    (weight[EXERCISE_TARGETS[b]]-weight[EXERCISE_TARGETS[a]])
-    ||((EXERCISE_CATEGORY[a]===movementKey?0:1)-(EXERCISE_CATEGORY[b]===movementKey?0:1))
-    ||a.localeCompare(b));
-}
+/* ── One sheet, not five lists ────────────────────────────────────────────────
+   Owner, 2026-11-17: "there doesn't seem to be any awareness between
+   movements: if you give them a hip flexor stretch for the lunge, you've given
+   them another hip flexor stretch for the SL Dip ... see if selection A could
+   cover the needs of selection B and therefore open the possibility of choosing
+   something else in place of selection B that could benefit a different aspect
+   that needs to be improved."
 
-/* One movement in, the exercises it should contribute out — plus why, so the
-   EIS can see the reasoning rather than a bare list.
-   left/right are the raw per-side scores; pain is handled by the caller.
-   faultIds are the stable ids ticked for this movement. */
-function suggestForMovement(movementKey,left,right,isHyper,faultIds,limit){
+   Until then each movement chose alone, and a duplicate was only removed after
+   the fact (deduplicateExercises), with nothing picked in its place.
+
+   So the five movements are planned together. An exercise covers one body area
+   (EXERCISE_TARGETS) in one of two ways: it lengthens it or it strengthens it.
+   Once the sheet covers an area one way, nothing else is picked for that area
+   that way, from any movement. The movement that wanted it takes its next need
+   instead, and its ⓘ names the exercise that already covers it. A stretch and a
+   strengthener of the same area are NOT duplicates; that pairing is the
+   continuum.
+
+   Movements take turns, one pick per turn, worst score first. The most impaired
+   movement gets first claim on a shared need, and every movement gets its first
+   pick before any movement gets its second. */
+const KIND_OF_TYPE={'flexibility':'lengthen','mobility':'lengthen',
+  'static stabilization':'strengthen','dynamic stabilization':'strengthen','strength':'strengthen'};
+const coverKey=id=>`${EXERCISE_TARGETS[id]}::${KIND_OF_TYPE[EX_TYPE[id]]}`;
+
+/* What one movement asks of the sheet: the kind of work, how many picks, and
+   which body areas its faults point at. */
+function movementNeed(movementKey,left,right,isHyper,faultIds,limit){
   const n=limit??PER_MOVEMENT_DEFAULT;
   const L=left??3, R=right??3;
   const worst=Math.min(L,R);
   const asymmetry=Math.abs(L-R);
   const faults=(faultIds||[]).filter(f=>!MODIFIER_FAULTS.has(f));
   const modifiers=(faultIds||[]).filter(f=>MODIFIER_FAULTS.has(f));
-
+  const worseSide=L===R?null:(L<R?0:1);
+  const base={key:movementKey,worst,asymmetry,worseSide,modifiers,slots:[],weight:{},targets:[]};
   if(worst>=3&&!isHyper&&!faults.length)
-    return{ids:[],phase:'none',asymmetry,modifiers,reason:'Clean on both sides.'};
+    return{...base,phase:'none',reason:'Clean on both sides.'};
 
-  // Severity sets the PHASE; faults choose within it. A restricted pattern gets
-  // the mobility work for the region a fault implicates, not the strengthening —
-  // "do not load a dysfunctional pattern" outranks "this fault means weakness".
-  let phase,types;
-  if(isHyper){
-    // Hypermobility: stretching is contraindicated whatever the score says.
-    phase='stabilize'; types=BUILD_TYPES;
-  }else if(worst<=1){
-    phase='restore'; types=RESTORE_TYPES;
-  }else{
-    phase='build'; types=BUILD_TYPES;
-  }
-
-  // Overlapping hands is a hypermobility sign: suppress flexibility outright.
+  // Overlapping hands is a hypermobility sign: stretching is withheld outright.
   const suppress=(faultIds||[]).some(f=>SUPPRESS_FLEXIBILITY_FAULTS.has(f));
-  if(suppress){phase='stabilize'; types=BUILD_TYPES;}
-
-  const targets=faults.flatMap(f=>FAULT_IMPAIRMENT[f]||[]);
-  let pool=targets.length?faultDrivenPool(movementKey,targets,types):[];
-  let driver=pool.length?'faults':'severity';
-  // A fault can name an impairment the library cannot address in this phase —
-  // hip abductors have no flexibility exercise, so a restricted score with a
-  // valgus fault finds nothing. Fall back rather than return an empty plan.
-  if(!pool.length)pool=poolFor(movementKey,types,
-    types===RESTORE_TYPES?MOBILITY_SUGGEST[movementKey]:HYPER_SUGGEST[movementKey]);
+  const stabilize=isHyper||suppress;
+  // At a 1 the strength work is activation only (EX_STAGE): never the loaded pattern.
+  const lowLoad=worst<=1;
+  const phase=stabilize?'stabilize':lowLoad?'restore':'build';
 
   // Asymmetry is an independent finding, not a rounding error: in an industrial
   // population each 1% of bilateral asymmetry raised low-back injury risk 18.5%.
-  const ids=pool.slice(0,asymmetry>=1?n+1:n);
+  const count=asymmetry>=1?n+1:n;
+  // A restricted pattern leads with lengthening and gets one strengthening pick
+  // second; every other phase strengthens throughout.
+  const slots=Array.from({length:count},(_,i)=>phase==='restore'&&i!==1?'lengthen':'strengthen');
 
-  const worseSide=L===R?null:(L<R?0:1);
+  const targets=faults.flatMap(f=>FAULT_IMPAIRMENT[f]||[]);
+  const weight={};
+  targets.forEach(t=>{weight[t]=(weight[t]||0)+1;});
   const reason=suppress
     ?'Hands overlapped — hypermobility. Stabilization only; stretching withheld.'
     :isHyper
       ?'Hypermobile — stabilization rather than stretching.'
-      :worst<=1
-        ?'Restricted (3+ faults or reduced range) — restore motion before loading.'
+      :lowLoad
+        ?'Restricted (3+ faults or reduced range) — restore motion, plus low-load strength.'
         :'Full range with compensation — stabilize and strengthen.';
+  return{...base,phase,lowLoad,slots,weight,targets:[...new Set(targets)],reason};
+}
 
-  return{ids,phase,asymmetry,worseSide,reason,driver,
-         targets:[...new Set(targets)],modifiers};
+function fitsSlot(id,slot,need){
+  if(KIND_OF_TYPE[EX_TYPE[id]]!==slot)return false;
+  return slot!=='strengthen'||!need.lowLoad||EX_STAGE[id]==='activate';
+}
+
+/* Candidates for one pick, best first.
+   First, exercises anywhere in the library aimed at an area this movement's
+   faults point at, ranked by how many faults agree on that area, then areas this
+   movement has not been given anything for yet, then its own exercises, then the
+   curated order. A fault can reach another movement's exercise on purpose: a
+   cervical rotation limit is better answered with thoracic work than neck work.
+   After those, the movement's own exercises as the score alone would choose. */
+function candidatesFor(need,slot,order){
+  const curated=(slot==='lengthen'?MOBILITY_SUGGEST:HYPER_SUGGEST)[need.key]||[];
+  const rank=id=>{const i=curated.indexOf(id);return i<0?999:i;};
+  const own=id=>EXERCISE_CATEGORY[id]===need.key?0:1;
+  const touched=new Set(need.picked.map(id=>EXERCISE_TARGETS[id]));
+  const seen=id=>touched.has(EXERCISE_TARGETS[id])?1:0;
+  const w=id=>need.weight[EXERCISE_TARGETS[id]]||0;
+  const at=id=>order.indexOf(id);
+  // A 2 has the range and lacks control under load, so loaded, whole-pattern
+  // work comes first there (EXERCISE-SELECTION-LOGIC.md §6: "prefer the loaded
+  // one for a score of 2"). A 1 cannot have it at all (fitsSlot). Without this,
+  // the activation exercises always ranked first and no loaded exercise was
+  // ever suggested.
+  const load=id=>need.phase==='build'&&EX_STAGE[id]==='integrate'?0:1;
+  const fits=order.filter(id=>fitsSlot(id,slot,need));
+  const fromFaults=fits.filter(id=>w(id))
+    .sort((a,b)=>w(b)-w(a)||seen(a)-seen(b)||load(a)-load(b)||own(a)-own(b)||rank(a)-rank(b)||at(a)-at(b));
+  const fromScore=fits.filter(id=>!w(id)&&own(id)===0)
+    .sort((a,b)=>seen(a)-seen(b)||load(a)-load(b)||rank(a)-rank(b)||at(a)-at(b));
+  return[...fromFaults.map(id=>({id,src:'faults'})),...fromScore.map(id=>({id,src:'score'}))];
+}
+
+/* The whole sheet. entries: [{key,left,right,isHyper,faultIds,limit}], one per
+   movement that can be prescribed for (pain is the caller's to exclude).
+   Returns, per movement, the exercises it contributes and why. */
+function suggestPlan(entries){
+  const order=Object.values(CAT_EXERCISES).flat().map(e=>e.id);
+  const needs=entries.map(e=>({...movementNeed(e.key,e.left,e.right,e.isHyper,e.faultIds,e.limit),
+    picked:[],sources:{},covered:[]}));
+  const turns=needs.map((n,i)=>({n,i})).filter(x=>x.n.slots.length)
+    .sort((a,b)=>a.n.worst-b.n.worst||b.n.asymmetry-a.n.asymmetry
+      ||b.n.targets.length-a.n.targets.length||a.i-b.i)
+    .map(x=>x.n);
+  const coveredBy={};   // coverKey -> {id, key}: the pick that covers it
+  const rounds=Math.max(0,...turns.map(n=>n.slots.length));
+  for(let r=0;r<rounds;r++)for(const need of turns){
+    const slot=need.slots[r];
+    if(!slot)continue;
+    for(const {id,src} of candidatesFor(need,slot,order)){
+      const k=coverKey(id), by=coveredBy[k];
+      if(by){
+        // Already on the sheet for another movement: say which, and look further.
+        if(by.key!==need.key&&!need.covered.some(c=>c.cover===k))
+          need.covered.push({cover:k,target:EXERCISE_TARGETS[id],kind:slot,byId:by.id,byMovement:by.key});
+        continue;
+      }
+      coveredBy[k]={id,key:need.key};
+      need.picked.push(id);
+      need.sources[id]=src;
+      break;
+    }
+  }
+  const out={};
+  needs.forEach(n=>{out[n.key]={ids:n.picked,phase:n.phase,asymmetry:n.asymmetry,worseSide:n.worseSide,
+    reason:n.reason,driver:n.picked.some(id=>n.sources[id]==='faults')?'faults':'severity',
+    sources:n.sources,targets:n.targets,modifiers:n.modifiers,covered:n.covered};});
+  return out;
+}
+
+/* One movement on its own, as if nothing else were on the sheet. The builder
+   uses suggestPlan; this is the same rule for a single movement. */
+function suggestForMovement(movementKey,left,right,isHyper,faultIds,limit){
+  return suggestPlan([{key:movementKey,left,right,isHyper,faultIds,limit}])[movementKey];
 }
 
 let IMAGE_REGISTRY={};
@@ -1895,6 +1974,27 @@ const EXERCISE_CATEGORY={
   b1:'sld',b2:'sld',b3:'sld',b4:'sld',b5:'sld',b6:'sld',b7:'sld',b8:'sld',b9:'sld',
   co1:'trunk',co2:'trunk',co3:'trunk',co4:'trunk',co5:'trunk',co6:'trunk',co7:'trunk'
 };
+/* A SCORE OF 1 STILL GETS STRENGTH WORK: THE KIND THAT DOES NOT LOAD THE PATTERN.
+   Owner, 2026-11-17: "a score of 1 still needs some strength work, but
+   appropriate strength work." Until then a 1 got stretching only.
+   The continuum the selection follows (EXERCISE-SELECTION-LOGIC.md §3) runs
+   lengthen, then ACTIVATE, then integrate. Activation belongs beside the
+   stretching from the start: isometrics, floor and quadruped work, single-joint
+   strengthening, supported balance holds. Integration is what "do not load a
+   dysfunctional pattern" withholds: loaded, weight-bearing, whole-pattern
+   movement such as lunges, step-ups, banded chops, dynamic single-leg work and
+   jumps. A 2 can have either.
+   Every stabilization and strength exercise has a stage; flexibility and
+   mobility have none. The library test fails if a new exercise is not classed. */
+const EX_STAGE={
+  l3:'integrate',l4:'activate',l5:'integrate',l6:'activate',l7:'integrate',l8:'integrate',l9:'activate',
+  s3:'activate',s4:'activate',s5:'activate',s6:'activate',s7:'integrate',
+  sh3:'activate',sh4:'activate',sh5:'activate',sh7:'integrate',sh8:'integrate',
+  t4:'activate',t5:'activate',t6:'integrate',t7:'integrate',t8:'integrate',t9:'activate',
+  c5:'activate',c7:'activate',c8:'activate',c9:'activate',
+  b1:'activate',b2:'activate',b3:'integrate',b4:'integrate',b5:'integrate',b6:'integrate',b7:'integrate',b8:'integrate',b9:'integrate',
+  co1:'activate',co2:'activate',co4:'activate',co5:'integrate',co7:'integrate'
+};
 /* Movement faults, each with a STABLE id.
    The id is the identifier; the label is display text and may be reworded freely.
    Faults were previously stored by array position with the label as the value, so
@@ -1970,6 +2070,10 @@ let observations={lunge:{},sld:{},shoulder:{},trunk:{},cervical:{}};
 let qualityFocus={lunge:[],sld:[],shoulder:[],trunk:[],cervical:[]};
 let sortCol='date', sortDir='desc';
 let resolvedConflicts=[];
+// Which movement sections are open in the Exercise Sheet Builder, by movement.
+// null until the open sheet first renders; reset whenever a sheet is opened.
+let exCatOpen=null;
+const escHtml=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 /* THE CURRENT EMPLOYEE -- ONE-APP-PLAN phase 3.
    One selection the shell and every section agree on, so the same person is not
@@ -2049,7 +2153,14 @@ function showTab(t){
   ['records','new','exercises','library'].forEach(x=>{document.getElementById('content-'+x).classList.add('hidden');document.getElementById('tab-'+x).classList.remove('active');});
   document.getElementById('content-'+t).classList.remove('hidden');document.getElementById('tab-'+t).classList.add('active');
   if(t==='library'&&!libraryBuilt){buildLibrary();libraryBuilt=true;}
+  // Every screen opens at the top (owner, 2026-11-17), however it was reached:
+  // a tab, Edit, Exercises, a save. Instant, not smooth -- a smooth scroll from
+  // the bottom of a long list is the annoyance itself, slowed down.
+  window.scrollTo(0,0);
 }
+// And on a reload or Back into this page, rather than where the browser left it.
+try{history.scrollRestoration='manual';}catch(e){}
+window.addEventListener('pageshow',e=>{if(e.persisted)window.scrollTo(0,0);});
 
 function buildScoreGrid(){
   const g=document.getElementById('score-grid');
@@ -2211,11 +2322,47 @@ function applyFormToRecords(d){
 function saveRecord(){const d=getFormData();if(!validateRecord(d))return;applyFormToRecords(d);saveRecords();clearForm();renderTable();showTab('records');}
 function saveAndBuildSheet(){const d=getFormData();if(!validateRecord(d))return;const rec=applyFormToRecords(d);saveRecords();clearForm();renderTable();openExerciseBuilder(rec);}
 
+/* A SHIFT THE PICKER DOES NOT LIST IS KEPT, NOT ERASED (owner, 2026-11-17).
+   HMA Manual's shift is free text, so a record can arrive with any shift. A
+   <select> given a value it has no option for selects nothing, and the next
+   save wrote that nothing over the real shift. So an unlisted shift gets its own
+   option while that record is open, and the option goes when the form clears. */
+function setShiftField(v){
+  const sel=document.getElementById('f-shift');
+  sel.querySelectorAll('option[data-unlisted]').forEach(o=>o.remove());
+  if(v&&![...sel.options].some(o=>o.value===v)){
+    const o=document.createElement('option');
+    o.value=v;o.textContent=`${v} Shift`;o.dataset.unlisted='1';
+    sel.appendChild(o);
+  }
+  sel.value=v||'1st';
+}
+
+/* ASSESSMENT TYPES: Initial, Follow-Up, Re-Assessment (owner, 2026-11-17).
+   They replace Initial and Retest. "Retest" was the re-assessment -- its date
+   prints as "Re-Assessment" and goes to Cadence as reassessment_date -- so a
+   stored "Retest" reads as Re-Assessment everywhere, and becomes it for good the
+   next time that record is saved from Edit. Records are not rewritten on load.
+   HMA Manual sends no type, and like the shift, a type the picker does not list
+   is kept as its own option while the record is open rather than erased. */
+const typeLabel=t=>t==='Retest'?'Re-Assessment':(t||'');
+function setTypeField(v){
+  const sel=document.getElementById('f-type');
+  sel.querySelectorAll('option[data-unlisted]').forEach(o=>o.remove());
+  const t=typeLabel(v)||'Initial';
+  if(![...sel.options].some(o=>o.value===t)){
+    const o=document.createElement('option');
+    o.value=t;o.textContent=t;o.dataset.unlisted='1';
+    sel.appendChild(o);
+  }
+  sel.value=t;
+}
+
 function clearForm(){
   editingId=null;document.getElementById('form-title').textContent='New Assessment';
   ['f-badge','f-fname','f-lname','f-dept','f-location','f-notes'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('f-company').value='Hendrickson';document.getElementById('f-shift').value='1st';
-  document.getElementById('f-type').value='Initial';document.getElementById('f-followup').value='6';document.getElementById('f-retest').value='4';
+  document.getElementById('f-company').value='Hendrickson';setShiftField('1st');
+  setTypeField('Initial');document.getElementById('f-followup').value='6';document.getElementById('f-retest').value='4';
   const ps=document.getElementById('f-plan'),pa=document.getElementById('f-pa');
   ps.value='No';ps.disabled=false;ps.className='';pa.value='No';pa.disabled=false;pa.className='';
   const pd=document.getElementById('f-pa-done');pd.value='No';pd.disabled=true;
@@ -2249,8 +2396,8 @@ function editRecord(id){
   document.getElementById('f-fname').value=r.fname||r.name.split(' ')[0]||'';
   document.getElementById('f-lname').value=r.lname||r.name.split(' ').slice(1).join(' ')||'';
   document.getElementById('f-company').value=r.company;document.getElementById('f-dept').value=r.dept||'';
-  document.getElementById('f-shift').value=r.shift||'1st';document.getElementById('f-date').value=r.date;
-  document.getElementById('f-location').value=r.location||'';document.getElementById('f-type').value=r.type;
+  setShiftField(r.shift);document.getElementById('f-date').value=r.date;
+  document.getElementById('f-location').value=r.location||'';setTypeField(r.type);
   document.getElementById('f-notes').value=r.notes||'';document.getElementById('f-followup').value=r.followup||'6';
   document.getElementById('f-retest').value=r.retest||'4';
   const ps=document.getElementById('f-plan'),pa=document.getElementById('f-pa');
@@ -2275,7 +2422,7 @@ function exName(id){
   return Object.values(CAT_EXERCISES).flat().find(e=>e.id===id)?.name||id;
 }
 function catLabel(key){return{lunge:'Lunge',sld:'Single Leg Dip',shoulder:'Shoulder Reach',trunk:'Trunk Rotation',cervical:'Cervical'}[key]||key;}
-function formatTarget(t){return t.replace(/-/g,' ');}
+function formatTarget(t){return t==='calves-ankle'?'calves/ankle':t.replace(/-/g,' ');}
 
 function deduplicateExercises(rec){
   resolvedConflicts=[];
@@ -2315,7 +2462,7 @@ function sortRecords(arr){
     if(sortCol==='name'){av=(a.name||'').toLowerCase();bv=(b.name||'').toLowerCase();}
     else if(sortCol==='date'){av=a.date||'';bv=b.date||'';}
     else if(sortCol==='shift'){av=a.shift||'';bv=b.shift||'';}
-    else if(sortCol==='type'){av=a.type||'';bv=b.type||'';}
+    else if(sortCol==='type'){av=typeLabel(a.type);bv=typeLabel(b.type);}
     else if(sortCol==='score'||sortCol==='risk'){av=a.total??0;bv=b.total??0;}
     else if(sortCol==='flags'){
       av=(a.hypermobile?MOVEMENTS.filter(m=>a.hypermobile[m.key]).length:0);
@@ -2404,7 +2551,7 @@ function renderTable(){
     const isCurrent=!!(currentEmployee&&currentEmployee.id===r.id);
     return`<tr class="${isCurrent?'row-current':''}"><td class="cell-light">${rowLightHtml(r)}</td><td><button class="emp-name" onclick="setCurrentEmployee('${r.id}',event)" title="${isCurrent?'Clear this employee as the current one':'Make this the current employee across the suite'}"><strong>${r.name}</strong></button>${r.badge?'':noBadge}<br><span style="font-size:.68rem;color:var(--tx2)">${sub}</span></td>
       <td>${r.date}</td><td>${r.shift||'—'} Shift</td>
-      <td><span class="type-chip${r.type==='Initial'?'':' retest'}">${r.type}</span></td>
+      <td>${typeLabel(r.type)?`<span class="type-chip${typeLabel(r.type)==='Initial'?'':' retest'}">${escHtml(typeLabel(r.type))}</span>`:'—'}</td>
       <td style="font-weight:800;font-size:1.14rem;color:var(--tx)">${r.total}<span style="font-size:.68rem;font-weight:400;color:var(--tx3)">/15</span></td>
       <td><span class="badge badge-${risk}">${{high:'High',mod:'Moderate',low:'Low'}[risk]}</span></td>
       <td>${flagsCell}</td>
@@ -2500,7 +2647,7 @@ function buildPlanPayload(rec){
     },
     assessment:{
       assessment_date:rec.date||'',
-      assessment_type:rec.type||'Initial',
+      assessment_type:typeLabel(rec.type)||'Initial',
       total_score:typeof rec.total==='number'?rec.total:null,
       follow_up_date:_isoPlusWeeks(rec.date,rec.followup),
       reassessment_date:_isoPlusWeeks(rec.date,rec.retest),
@@ -2556,7 +2703,7 @@ function openExerciseBuilder(rec){
   document.getElementById('ex-emp-name').value=rec?rec.name:'';
   document.getElementById('ex-date').value=rec?rec.date:new Date().toISOString().split('T')[0];
   selectedExercises={};customSetsReps={};suggestedKeys={};hyperSuggestedKeys={};suggestionNotes={};
-  restoredProgram=false;
+  restoredProgram=false;exCatOpen=null;
 
   // A finalized program is the EIS's clinical decision. Once one exists, reopening
   // the builder restores it verbatim rather than re-deriving suggestions from the
@@ -2570,6 +2717,7 @@ function openExerciseBuilder(rec){
     restoredProgram=true;
   } else if(rec){
     const hyper=rec.hypermobile||{};
+    const entries=[];
     MOVEMENTS.forEach(m=>{
       const s=rec.scores[m.key];
       const isHyper=hyper[m.key]||false;
@@ -2583,10 +2731,15 @@ function openExerciseBuilder(rec){
       // Faults the EIS actually ticked, read through the id normalizer so
       // assessments predating stable fault ids still drive selection.
       const ticked=Object.keys(normalizeObservations(m.key,(rec.observations||{})[m.key]));
-      const out=suggestForMovement(m.key,raw[0],raw[1],isHyper,ticked);
+      entries.push({key:m.key,left:raw[0],right:raw[1],isHyper,faultIds:ticked});
+    });
+    // Planned together, so one movement's pick can answer another's need.
+    const plan=suggestPlan(entries);
+    entries.forEach(({key,isHyper})=>{
+      const out=plan[key];
       out.ids.forEach(id=>selectedExercises[id]=true);
-      if(out.ids.length)(isHyper?hyperSuggestedKeys:suggestedKeys)[m.key]=true;
-      if(out.phase!=='none')suggestionNotes[m.key]=out;
+      if(out.ids.length)(isHyper?hyperSuggestedKeys:suggestedKeys)[key]=true;
+      if(out.phase!=='none')suggestionNotes[key]=out;
     });
     // Quality focus bias — add exercises matching preferred types on top of auto-suggestions
     const recQF=rec.qualityFocus||{};
@@ -2601,7 +2754,6 @@ function openExerciseBuilder(rec){
   document.getElementById('ex-builder').classList.remove('hidden');
   document.getElementById('ex-print').classList.add('hidden');
   showTab('exercises');
-  window.scrollTo({top:0,behavior:'smooth'});
 }
 
 function imgTag(id,forPrint=false){
@@ -2655,6 +2807,9 @@ function buildExerciseUI(){
       bottomActions.hidden=!(Object.keys(selectedExercises).length&&tall);
     });
   }
+  // Open state survives a re-render (Clear All) once a sheet is open; a newly
+  // opened sheet starts from what is selected.
+  const openMap=exCatOpen||{};
   document.getElementById('ex-categories').innerHTML=cats.map(({key,data})=>{
     const isHyper=hyperSuggestedKeys[key];
     const isMobility=suggestedKeys[key];
@@ -2665,26 +2820,37 @@ function buildExerciseUI(){
     if(qfPrefs.length)headerLabel+=` &nbsp;◈ ${qfPrefs.map(q=>QUALITY_LABELS[q]).join(', ')}`;
     // Why this movement got what it got. A suggestion the EIS cannot interrogate
     // is one they have to either trust blindly or ignore; neither is useful.
+    // Behind an ⓘ on the header (DESIGN-RULES rule 2), not under it -- and so
+    // still readable while the section is closed.
     const note=suggestionNotes[key];
     let why='';
     if(note&&!restoredProgram){
       const bits=[note.reason];
-      if(note.driver==='faults'&&note.targets?.length)
-        bits.push(`From the faults you recorded: ${note.targets.join(', ')}.`);
-      else if(note.driver==='severity'&&note.phase!=='refer'&&note.phase!=='none')
-        bits.push('No recorded fault pointed anywhere reachable, so this follows the score alone.');
+      const fromScore=(note.ids||[]).filter(id=>note.sources?.[id]==='score');
+      if(note.driver==='faults'&&note.targets?.length){
+        bits.push(`From the faults you recorded: ${note.targets.map(formatTarget).join(', ')}.`);
+        if(fromScore.length)bits.push(`${fromScore.map(exName).join(' and ')}: from the score alone.`);
+      }else if(note.phase!=='refer'&&note.phase!=='none'&&note.ids?.length)
+        bits.push(!note.targets?.length?'No fault recorded, so this follows the score alone.'
+          :note.covered?.length?'What your recorded faults point at is already on the sheet, so this follows the score alone.'
+          :'No recorded fault pointed anywhere reachable, so this follows the score alone.');
+      if(note.covered?.length)
+        bits.push(`Already on the sheet: ${note.covered.map(c=>
+          `${formatTarget(c.target)} ${c.kind==='lengthen'?'stretched':'strengthened'} by ${exName(c.byId)} (${catLabel(c.byMovement)})`).join('; ')}.`);
       if(note.asymmetry>=1&&note.worseSide!==null)
         bits.push(`Asymmetric by ${note.asymmetry} — ${MOVEMENTS.find(m=>m.key===key)?.sides[note.worseSide]||'one side'} is worse.`);
       if(note.modifiers?.length)
         bits.push(`Also noted: ${note.modifiers.map(f=>faultLabel(key,f)).join('; ')}.`);
-      why=`<div class="ex-why">${bits.join(' ')}</div>`;
+      const text=escHtml(bits.join(' '));
+      // preventDefault: a click on the ⓘ shows it, and must not also fold the section.
+      why=`<span class="info" tabindex="0" role="tooltip" aria-label="${text}" onclick="event.preventDefault()">i<span class="tip">${text}</span></span>`;
     }
-    return`<div class="ex-category">
-      <div class="ex-cat-header ${headerClass}">
-        <span>${headerLabel}</span>
-        <span style="font-size:15px;font-weight:400;opacity:.7">Click to select / deselect</span>
-      </div>
-      ${why}
+    if(!(key in openMap))openMap[key]=data.exercises.some(ex=>selectedExercises[ex.id]);
+    return`<details class="ex-category" ${openMap[key]?'open':''} ontoggle="exCatOpen['${key}']=this.open">
+      <summary class="ex-cat-header ${headerClass}">
+        <span>${headerLabel}${why}</span>
+        <span class="ex-chev" aria-hidden="true">▸</span>
+      </summary>
       <div class="ex-grid">${data.exercises.map(ex=>{
         const setsVal=(customSetsReps[ex.id]!==undefined?customSetsReps[ex.id]:ex.sets).replace(/"/g,'&quot;');
         const setsPlaceholder=ex.sets.replace(/"/g,'&quot;');
@@ -2698,8 +2864,9 @@ function buildExerciseUI(){
           </div>
         </div>`;}).join('')}
       </div>
-    </div>`;
+    </details>`;
   }).join('');
+  exCatOpen=openMap;
 }
 
 function toggleEx(id){
@@ -3021,10 +3188,10 @@ function _renderPrintSheet(chosen,sched){
     ${_buildCalendarPage(chosen,sched)}`;
   document.getElementById('ex-builder').classList.add('hidden');
   document.getElementById('ex-print').classList.remove('hidden');
-  window.scrollTo({top:0,behavior:'smooth'});
+  window.scrollTo(0,0);
 }
 
-function backToBuilder(){document.getElementById('ex-builder').classList.remove('hidden');document.getElementById('ex-print').classList.add('hidden');}
+function backToBuilder(){document.getElementById('ex-builder').classList.remove('hidden');document.getElementById('ex-print').classList.add('hidden');window.scrollTo(0,0);}
 
 function printSheet(){
   const name=document.getElementById('ex-emp-name').value.trim()||'Employee';
