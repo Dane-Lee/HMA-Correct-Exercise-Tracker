@@ -59,27 +59,28 @@ function load(href, { respond = freshStore, local = new Map([["hma-records", REC
 }
 
 // 1. Off this machine: no request of any kind, and the browser copy still works.
-//    The offline bar keeps the timing it had before any of this (v3 in the
-//    block): on opening from a file, but on the Vercel copy only after a save,
-//    because the owner's manager shows that copy to people without saving.
-for (const [href, barOnOpening] of [
-  ["https://hma-tracker.vercel.app/", false],            // the deployed Tracker
-  ["https://hma-tracker.vercel.app/tracker", false],     // even on the shell's own path
-  ["file:///C:/Users/someone/HMA%20Overlay.html", true], // the Overlay opened from disk
-  ["http://192.168.1.20:5182/", false],                  // another machine on the network
+//    And nothing on the page about it (v5, 2026-11-17). Until then an
+//    "Offline: saving to this browser only" bar was pinned to the bottom; the
+//    owner asked for it gone: "I hate when you decide to include things like
+//    that which I never asked for and clearly isn't needed."
+for (const href of [
+  "https://hma-tracker.vercel.app/",            // the deployed Tracker
+  "https://hma-tracker.vercel.app/tracker",     // even on the shell's own path
+  "file:///C:/Users/someone/HMA%20Overlay.html", // the Overlay opened from disk
+  "http://192.168.1.20:5182/",                  // another machine on the network
 ]) {
   const { storage, requests, local, bars } = load(href);
 
   const got = await storage.get("hma-records");
   assert.equal(got?.value, RECORDS, `${href}: reads this browser's copy`);
-  assert.equal(bars.length, barOnOpening ? 1 : 0, `${href}: offline bar on opening is ${barOnOpening}`);
+  assert.equal(bars.length, 0, `${href}: nothing added to the page on opening`);
 
   const next = JSON.stringify([{ id: "r2", name: "Another Fictional Person" }]);
   await storage.set("hma-records", next);
   assert.equal(local.get("hma-records"), next, `${href}: writes this browser's copy`);
 
   assert.deepEqual(requests, [], `${href}: must send nothing anywhere, got ${JSON.stringify(requests)}`);
-  assert.equal(bars.length, 1, `${href}: once saved, says once that it is saving to this browser only`);
+  assert.equal(bars.length, 0, `${href}: nor after a save`);
   assert.equal(local.has(UNSENT), false, `${href}: nothing is waiting to be sent from here`);
 }
 
@@ -135,7 +136,7 @@ for (const href of [
   await before.storage.set("hma-records", NEWER);
 
   assert.equal(before.local.get(UNSENT), "1", "a save the server never got is marked unsent");
-  assert.equal(before.bars.length, 1, "and the offline bar says so");
+  assert.equal(before.bars.length, 0, "nothing is added to the page: the unsent mark is what keeps it");
 
   const after = load("http://127.0.0.1:8003/overlay", { respond: { GET: 200, PUT: 200 }, local: before.local });
   const got = await after.storage.get("hma-records");
