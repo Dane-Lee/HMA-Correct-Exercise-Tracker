@@ -9,8 +9,18 @@ import assert from "node:assert/strict";
 const raw = readFileSync(fileURLToPath(new URL("../index.html", import.meta.url)), "utf8");
 const html = raw.split("\r\n").join("\n");
 
+// Once, on the last page only (owner, 2026-11-23: get rid of it "at the bottom
+// of every page except the very last page"). The Weekly Exercise Schedule is
+// always the last page, so the footer lives there and nowhere else.
 const footers = html.match(/<div class="print-footer">[^<]*/g) || [];
-assert.equal(footers.length, 2, "both printed pages carry a footer");
+assert.equal(footers.length, 1, "the footer prints once");
+const cal = html.indexOf("function _buildCalendarPage(");
+const calEnd = html.indexOf("\n}\n", cal);
+const at = html.indexOf('<div class="print-footer">');
+assert.ok(cal > 0 && at > cal && at < calEnd, "and it is on the schedule page");
+const sheet = html.slice(html.indexOf("function _renderPrintSheet("), html.indexOf("function backToBuilder("));
+assert.ok(/\$\{_buildCalendarPage\(chosen,sched\)\}`;\s*$/.test(sheet.slice(0, sheet.indexOf("document.getElementById('ex-builder')")).trim()),
+  "the schedule page is the last thing printed");
 for (const footer of footers) {
   assert.match(footer, /ATI Worksite Solutions\$\{_footerCompany\(\)\}/, "the footer's company comes from the record");
   assert.doesNotMatch(footer, /Hendrickson/, "no company is written into the footer");

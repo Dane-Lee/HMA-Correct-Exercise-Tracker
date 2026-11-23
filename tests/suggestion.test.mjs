@@ -77,24 +77,58 @@ for (const k of KEYS) {
   assert.deepEqual(suggestForMovement(k, 3, 3, false).ids, [], `${k}: 3/3 needs no work`);
 }
 
-// --- asymmetry is a finding in its own right -------------------------------
+// --- the side-score table (owner, 2026-11-23) -------------------------------
+// "if someone scores a 1 on both sides versus person 2 who scores 1 on one side
+// and a 2 on the other then the exercise / stretching selections chosen for them
+// should be approached differently ... every variation of the inbalances".
+// Until then only the worse side counted: 3/1 and 2/1 were identical, and 3/2
+// got more than 2/2. He chose the counts and kinds below, both sides equal.
+const kindOf = (id) => RESTORE_TYPES.includes(EX_TYPE[id]) ? "stretch"
+  : EX_STAGE[id] === "integrate" ? "loaded" : "activation";
+const TABLE = {
+  "1/1": { stretch: 2, activation: 1 },
+  "1/2": { stretch: 1, activation: 2 },
+  "1/3": { stretch: 1, activation: 1 },
+  "2/2": { loaded: 1, activation: 1 },
+  "2/3": { loaded: 1 },
+  "3/3": {},
+};
+// Where the library has none of a kind, the pick goes to the nearest kind the
+// table allows or is left empty -- never to a heavier one. Cervical has no
+// loaded exercise, so its "loaded" pick is activation work.
+const NO_LOADED = new Set(["cervical"]);
 for (const k of KEYS) {
-  const even = suggestForMovement(k, 2, 2, false);
-  const uneven = suggestForMovement(k, 2, 3, false);
-  assert.equal(even.asymmetry, 0);
-  assert.equal(uneven.asymmetry, 1);
-  assert.ok(uneven.ids.length > even.ids.length,
-    `${k}: a side-to-side difference should widen the selection, not vanish into Math.min()`);
-  assert.equal(uneven.worseSide, 0, "the worse side is identified so it can be emphasised");
-  assert.equal(even.worseSide, null);
+  const seen = new Map();
+  for (const [row, want] of Object.entries(TABLE)) {
+    const [w, b] = row.split("/").map(Number);
+    for (const [L, R] of [[w, b], [b, w]]) {
+      const got = suggestForMovement(k, L, R, false);
+      assert.equal(got.row, row);
+      const kinds = {};
+      for (const id of got.ids) kinds[kindOf(id)] = (kinds[kindOf(id)] || 0) + 1;
+      let expected = { ...want };
+      if (NO_LOADED.has(k) && expected.loaded) {
+        expected.activation = (expected.activation || 0) + expected.loaded;
+        delete expected.loaded;
+      }
+      assert.deepEqual(kinds, expected, `${k} ${L}/${R}: ${got.ids.join(",")}`);
+      assert.equal(got.asymmetry, Math.abs(L - R));
+      assert.equal(got.worseSide, L === R ? null : L < R ? 0 : 1, "the worse side is named in the ⓘ");
+      if (L === w) seen.set(row, got.ids.slice().sort().join(","));
+      else assert.deepEqual(got.ids.slice().sort().join(","), seen.get(row),
+        `${k}: ${L}/${R} and ${R}/${L} are the same finding, so the same work`);
+    }
+  }
+  // Every row is its own prescription.
+  const rows = [...seen.entries()].filter(([row]) => row !== "3/3");
+  assert.equal(new Set(rows.map(([, ids]) => ids)).size, rows.length,
+    `${k}: two side-score rows produced the same exercises: ${rows.map(([r, i]) => `${r}=${i}`).join(" ")}`);
+  // The specific complaints.
+  assert.ok(suggestForMovement(k, 3, 2, false).ids.length < suggestForMovement(k, 2, 2, false).ids.length,
+    `${k}: 3/2 must not get more work than 2/2`);
+  assert.notDeepEqual(suggestForMovement(k, 3, 1, false).ids, suggestForMovement(k, 2, 1, false).ids,
+    `${k}: 3/1 and 2/1 must differ`);
 }
-
-// --- Math.min() is no longer the whole story --------------------------------
-// Both of these have worst===2, but one is asymmetric. Under the old logic they
-// were indistinguishable.
-const sym = suggestForMovement("sld", 2, 2, false);
-const asym = suggestForMovement("sld", 2, 3, false);
-assert.notDeepEqual(sym.ids, asym.ids, "2/2 and 2/3 must differ");
 
 // --- hypermobility outranks severity ---------------------------------------
 // Stretching is contraindicated, so a hypermobile 1 must still get stabilization
@@ -108,9 +142,11 @@ for (const k of KEYS) {
 }
 
 // --- plans are bounded, so a full sheet no longer yields nineteen ------------
+// Three picks per movement at most (SIDE_TABLE), before the sheet removes
+// overlaps between movements.
 let total = 0;
 for (const k of KEYS) total += suggestForMovement(k, 1, 1, false).ids.length;
-assert.ok(total <= 12, `a worst-case sheet should stay small, got ${total}`);
+assert.ok(total <= 15, `a worst-case sheet should stay small, got ${total}`);
 
 // --- how many DISTINCT plans can the scoring now produce? --------------------
 // The old logic could produce 32. Count what the new one can, over the same
@@ -127,11 +163,31 @@ assert.ok(plans.size > 32,
 
 // ===================== fault-driven selection (§5) =========================
 
-// --- every mapped impairment must be reachable in the library ---------------
-const allTargets = new Set(Object.values(EXERCISE_TARGETS));
-for (const [fault, targets] of Object.entries(FAULT_IMPAIRMENT)) {
-  for (const t of targets) {
-    assert.ok(allTargets.has(t), `${fault} maps to "${t}", which no exercise targets`);
+// --- every mapped impairment must be reachable in the library, THAT way ------
+// Each fault says which areas to stretch and which to strengthen (2026-11-23).
+// An area named the wrong way round is unreachable, which this catches.
+const reachable = new Set(Object.keys(EXERCISE_TARGETS).map(coverKey));
+for (const [fault, dir] of Object.entries(FAULT_IMPAIRMENT)) {
+  assert.deepEqual(Object.keys(dir).sort(), ["lengthen", "strengthen"], `${fault}: both directions listed`);
+  for (const kind of ["lengthen", "strengthen"]) for (const t of dir[kind]) {
+    assert.ok(reachable.has(`${t}::${kind}`), `${fault} says to ${kind} "${t}", which no exercise does`);
+  }
+}
+
+// --- the direction bites: rounded shoulders stretches the pecs ---------------
+// Before, "pectorals" with no direction let a strengthening pick take Wall Push
+// Up, which strengthens the pecs, for rounded shoulders -- on 70% of sheets.
+for (const [L, R] of [[1, 1], [2, 2], [2, 3], [1, 3]]) {
+  const got = suggestForMovement("shoulder", L, R, false, ["sh-rounded"]);
+  for (const id of got.ids) {
+    if (EXERCISE_TARGETS[id] === "pectorals" || EXERCISE_TARGETS[id] === "lats") {
+      assert.ok(RESTORE_TYPES.includes(EX_TYPE[id]),
+        `${L}/${R} rounded shoulders: ${id} strengthens ${EXERCISE_TARGETS[id]}, which the fault says to stretch`);
+    }
+    if (got.sources[id] === "faults") {
+      const dir = FAULT_IMPAIRMENT["sh-rounded"];
+      assert.ok(dir[RESTORE_TYPES.includes(EX_TYPE[id]) ? "lengthen" : "strengthen"].includes(EXERCISE_TARGETS[id]));
+    }
   }
 }
 
@@ -153,22 +209,15 @@ assert.notDeepEqual(valgus.ids, balance.ids,
   "two different faults at the same score must not produce the same exercises");
 assert.equal(valgus.driver, "faults");
 for (const id of valgus.ids) {
-  assert.ok(FAULT_IMPAIRMENT["sld-knee-valgus"].includes(EXERCISE_TARGETS[id]),
-    `${id} targets ${EXERCISE_TARGETS[id]}, which the valgus fault does not implicate`);
+  assert.ok(FAULT_IMPAIRMENT["sld-knee-valgus"].strengthen.includes(EXERCISE_TARGETS[id]),
+    `${id} targets ${EXERCISE_TARGETS[id]}, which the valgus fault does not say to strengthen`);
 }
 
 // --- cross-category reach: the point of mapping onto targets ---------------
-// Three of five cervical faults should prescribe thoracic work.
-// The claim is about the IMPAIRMENT reached, not the folder an exercise sits in
-// — c9 targets thoracic-rotation while being filed under cervical, and at build
-// phase the thoracic *mobility* work is correctly excluded as flexibility.
-const fhp = suggestForMovement("cervical", 2, 2, false, ["cerv-forward-head"]);
-assert.ok(fhp.ids.some((id) => EXERCISE_TARGETS[id].startsWith("thoracic")),
-  "forward-head posture should reach thoracic work, not only cervical");
-
-// Restricted, it still reaches the thorax. Since 2026-11-17 a 1 gets one stretch
-// and one strengthening pick, so the thoracic reach comes through the
-// strengthening pick rather than a second stretch.
+// Three of five cervical faults should prescribe thoracic work. Forward head
+// says to STRETCH the thorax (the approved draft: Chin Tuck, Child Pose, T-Spine
+// Rotation), so the reach shows where the table has stretches: at a 1. At a 2/2
+// the table has none, and the ⓘ says the faults point elsewhere.
 const fhpRestricted = suggestForMovement("cervical", 1, 1, false, ["cerv-forward-head"]);
 assert.ok(fhpRestricted.ids.some((id) => EXERCISE_TARGETS[id].startsWith("thoracic")),
   "a restricted forward-head pattern should still reach thoracic work");
@@ -236,17 +285,16 @@ for (let mask = 0; mask < (1 << lungeFaults.length); mask++) {
 // ===================== one sheet, not five lists (2026-11-17) ==============
 
 // --- the owner's example: two hip flexor stretches from two movements --------
-// Lunge takes the hip flexor stretch; SL Dip, asymmetric so it has a second
-// stretch to choose, must take something else and say what already covers it.
+// Lunge takes the hip flexor stretch; SL Dip, 1/1 so it has a second stretch to
+// choose, must take something else and say what already covers it.
 {
   const plan = suggestPlan([
     { key: "lunge", left: 1, right: 1 },
-    { key: "sld", left: 1, right: 2 },
+    { key: "sld", left: 1, right: 1 },
   ]);
   const flexorStretches = [...plan.lunge.ids, ...plan.sld.ids]
     .filter((id) => coverKey(id) === "hip-flexors::lengthen");
   assert.equal(flexorStretches.length, 1, "one hip flexor stretch on the sheet, not two");
-  assert.equal(plan.sld.ids.length, 3, "SL Dip still gets its three picks");
   assert.ok(plan.sld.covered.some((c) => c.target === "hip-flexors" && c.byMovement === "lunge"),
     "and its reasoning names the Lunge stretch that covers it");
 }
@@ -261,7 +309,8 @@ for (let mask = 0; mask < (1 << lungeFaults.length); mask++) {
   ]);
   const all = [...plan.lunge.ids, ...plan.sld.ids];
   assert.equal(all.filter((id) => id === "s1").length, 1, "the calf stretch appears once");
-  assert.equal(plan.lunge.ids.length, 2, "lunge still gets two picks");
+  assert.ok(plan.lunge.ids.length >= 2, "lunge still gets its stretch and its activation pick");
+  assert.ok(plan.lunge.ids.some((id) => RESTORE_TYPES.includes(EX_TYPE[id])), "lunge takes a different stretch");
   assert.ok(plan.lunge.covered.some((c) => c.byId === "s1"), "lunge says the calf stretch covers it");
 }
 
@@ -296,6 +345,37 @@ for (let mask = 0; mask < (1 << lungeFaults.length); mask++) {
     sheets++;
   }
   console.log(`  random whole sheets checked for duplicate coverage: ${sheets}`);
+}
+
+// ===================== Quality Focus (owner, 2026-11-23) ===================
+// His case: Single Leg Dip, only Dynamic Stabilization ticked. It used to add
+// every dynamic stabilization exercise in the section on top of the plan -- 8 of
+// 17, seven of them loaded, Cross Over Jumps included, at any score. He chose:
+// the ticked qualities decide the kind; the count and the limits stay.
+{
+  const dyn = ["dynamic stabilization"];
+  for (const [row, want] of Object.entries(TABLE)) {
+    const [L, R] = row.split("/").map(Number);
+    for (const k of KEYS) {
+      const got = suggestForMovement(k, L, R, false, [], undefined, dyn);
+      const slots = Object.values(want).reduce((a, b) => a + b, 0) || 1;   // a ticked 3/3 gets one
+      assert.ok(got.ids.length <= slots, `${k} ${row} + Dynamic Stabilization: ${got.ids.length} picks, table allows ${slots}`);
+      for (const id of got.ids) assert.equal(EX_TYPE[id], "dynamic stabilization", `${k} ${row}: ${id} is not the ticked quality`);
+      if (L <= 1) lowLoadOnly(`${k} ${row} + Dynamic Stabilization`, got.ids);
+    }
+  }
+  const his = suggestForMovement("sld", 1, 1, false, [], undefined, dyn);
+  assert.ok(his.ids.length >= 1 && his.ids.length <= 3, `his case gets a few picks, not half the section: ${his.ids}`);
+  assert.ok(!his.ids.includes("b9"), "no Cross Over Jumps at a score of 1");
+  assert.equal(suggestForMovement("sld", 3, 3, false, [], undefined, dyn).ids.length, 1,
+    "a clean movement with a ticked quality gets one exercise of it");
+  // Hypermobile: a ticked stretch quality is set aside, and the ⓘ says so.
+  const hyperFlex = suggestForMovement("shoulder", 2, 2, true, [], undefined, ["flexibility"]);
+  assert.ok(hyperFlex.ids.every((id) => !RESTORE_TYPES.includes(EX_TYPE[id])), "no stretching when hypermobile, even ticked");
+  assert.match(hyperFlex.reason, /set aside/);
+  // Unknown strings (HMA Manual sends its own vocabulary) are ignored, not matched.
+  assert.deepEqual(suggestForMovement("lunge", 2, 2, false, [], undefined, ["Control"]).ids,
+    suggestForMovement("lunge", 2, 2, false).ids);
 }
 
 console.log(`All suggestion checks passed.`);

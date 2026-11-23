@@ -1564,35 +1564,50 @@ const MOBILITY_SUGGEST={
    with neck work, and a lunge fault is often an ankle problem.
 
    Mapping approved by the owner 2026-08-28; rationale, evidence strength and
-   the rows that are inference rather than research are in FAULT-MAPPING-DRAFT.md. */
+   the rows that are inference rather than research are in FAULT-MAPPING-DRAFT.md.
+
+   EACH AREA SAYS WHICH WAY IT NEEDS WORK (2026-11-23). Until then a fault named
+   areas only, and the planner filled stretch and strengthening picks from the
+   same areas -- so "rounded shoulders", which points at tight pecs, pulled Wall
+   Push Up (it strengthens the pecs) onto 70% of sheets. The direction of each
+   area is the one the approved draft gave: its listed exercises for a fault are
+   stretches for the tight areas and strengtheners for the weak ones. The areas
+   themselves are unchanged. */
 const FAULT_IMPAIRMENT={
   // Lunge
-  'lunge-rom':         ['hip-flexors','calves-ankle'],
-  'lunge-knee-valgus': ['hip-abductors','glutes','calves-ankle'],
-  'lunge-foot-flat':   ['calves-ankle'],
-  'lunge-control':     ['single-leg-balance','quadriceps'],
-  'lunge-foot-roll':   ['calves-ankle','single-leg-balance'],
+  'lunge-rom':         {lengthen:['hip-flexors','calves-ankle'],strengthen:[]},
+  'lunge-knee-valgus': {lengthen:['calves-ankle'],strengthen:['hip-abductors','glutes']},
+  'lunge-foot-flat':   {lengthen:['calves-ankle'],strengthen:[]},
+  'lunge-control':     {lengthen:[],strengthen:['single-leg-balance','quadriceps']},
+  'lunge-foot-roll':   {lengthen:['calves-ankle'],strengthen:['single-leg-balance']},
   // Single leg dip
-  'sld-hips-level':    ['hip-abductors'],
-  'sld-knee-valgus':   ['hip-abductors','glutes','calves-ankle'],
-  'sld-control':       ['single-leg-balance','balance'],
-  'sld-rotation':      ['core-rotation','core-anterior'],
-  'sld-foot-roll':     ['calves-ankle','single-leg-balance'],
+  'sld-hips-level':    {lengthen:[],strengthen:['hip-abductors']},
+  'sld-knee-valgus':   {lengthen:['calves-ankle'],strengthen:['hip-abductors','glutes']},
+  'sld-control':       {lengthen:[],strengthen:['single-leg-balance','balance']},
+  'sld-rotation':      {lengthen:[],strengthen:['core-rotation','core-anterior']},
+  'sld-foot-roll':     {lengthen:['calves-ankle'],strengthen:['single-leg-balance']},
   // Shoulder reach
-  'sh-rounded':        ['pectorals','lats','scapular'],
-  'sh-top-reach':      ['triceps','lats','shoulder-mobility'],
-  'sh-bottom-reach':   ['shoulder-mobility','pectorals'],
-  'sh-overlap':        ['rotator-cuff','scapular'],
+  'sh-rounded':        {lengthen:['pectorals','lats'],strengthen:['scapular']},
+  'sh-top-reach':      {lengthen:['triceps','lats','shoulder-mobility'],strengthen:[]},
+  'sh-bottom-reach':   {lengthen:['shoulder-mobility','pectorals'],strengthen:[]},
+  'sh-overlap':        {lengthen:[],strengthen:['rotator-cuff','scapular']},
   // Trunk rotation
-  'trunk-cervical':    ['thoracic-mobility','thoracic-rotation'],
-  'trunk-le-movement': ['thoracic-rotation','core-rotation'],
-  'trunk-deviation':   ['core-anterior','lumbar-mobility'],
+  'trunk-cervical':    {lengthen:['thoracic-mobility','thoracic-rotation'],strengthen:[]},
+  'trunk-le-movement': {lengthen:['thoracic-rotation'],strengthen:['core-rotation']},
+  'trunk-deviation':   {lengthen:['lumbar-mobility'],strengthen:['core-anterior']},
   // Cervical rotation
-  'cerv-forward-head': ['cervical-retraction','thoracic-mobility','thoracic-rotation'],
-  'cerv-rom':          ['cervical-rotation','thoracic-rotation'],
-  'cerv-shoulder':     ['scapular','thoracic-rotation'],
-  'cerv-deviation':    ['cervical-rotation','cervical-lateral','cervical-retraction'],
+  'cerv-forward-head': {lengthen:['cervical-retraction','thoracic-mobility','thoracic-rotation'],strengthen:[]},
+  'cerv-rom':          {lengthen:['cervical-rotation','thoracic-rotation'],strengthen:[]},
+  'cerv-shoulder':     {lengthen:['thoracic-rotation'],strengthen:['scapular']},
+  'cerv-deviation':    {lengthen:[],strengthen:['cervical-rotation','cervical-lateral','cervical-retraction']},
 };
+// Every area a fault points at, either way -- for the ⓘ and for turn order.
+const faultAreas=f=>{const m=FAULT_IMPAIRMENT[f];return m?[...m.lengthen,...m.strengthen]:[];};
+/* A muscle a recorded fault says is tight is not strengthened anywhere on that
+   person's sheet. Only muscles: the other stretch areas are motions (thoracic
+   rotation, cervical retraction), where active work in that motion is the
+   point. Today this bites on one exercise, Wall Push Up for rounded shoulders. */
+const TIGHT_MUSCLE_AREAS=new Set(['hip-flexors','calves-ankle','pectorals','lats','triceps']);
 
 /* Six faults deliberately map to nothing. "Excessive effort/overexertion"
    describes how the movement was produced, not what restricts it, and
@@ -1610,7 +1625,48 @@ const SUPPRESS_FLEXIBILITY_FAULTS=new Set(['sh-overlap']);
 
 const RESTORE_TYPES=['flexibility','mobility'];
 const BUILD_TYPES=['static stabilization','dynamic stabilization','strength'];
-const PER_MOVEMENT_DEFAULT=2;
+const STABILIZATION_TYPES=['static stabilization','dynamic stabilization'];
+
+/* THE SIDE-SCORE TABLE. Owner, 2026-11-23: "if someone scores a 1 on both
+   sides versus person 2 who scores 1 on one side and a 2 on the other then the
+   exercise / stretching selections chosen for them should be approached
+   differently ... every variation of the inbalances (3/1 versus 2/1 versus
+   1/1, etc.)". Until then only the worse side counted: 3/1 and 2/1 got
+   identical exercises, and 3/2 got MORE than 2/2.
+
+   Keyed worse side / better side. Each entry is one pick and the kind of work
+   it is, in the order the movement claims them. He chose this table, and chose
+   that BOTH SIDES ALWAYS GET THE SAME WORK: an uneven score is flagged in the
+   movement's ⓘ, not dosed differently.
+
+     stretch     flexibility or mobility
+     activation  low-load strength (EX_STAGE 'activate')
+     loaded      whole-pattern work (EX_STAGE 'integrate'); activation fills it
+                 where a movement has no loaded exercise, as Cervical has none */
+const SIDE_TABLE={
+  '1/1':['stretch','activation','stretch'],
+  '1/2':['stretch','activation','activation'],
+  '1/3':['stretch','activation'],
+  '2/2':['loaded','activation'],
+  '2/3':['loaded'],
+  '3/3':[],
+};
+const SIDE_LABEL={
+  '1/1':'Restricted on both sides','1/2':'Restricted on one side, compensating on the other',
+  '1/3':'Restricted on one side','2/2':'Compensating on both sides',
+  '2/3':'Compensating on one side','3/3':'Clean on both sides',
+};
+/* One pick: which exercise types may fill it, and the stage it wants. A strict
+   stage is required; otherwise it is preferred and the other stage may fill
+   it. Whatever the slot says, a 1 never gets the loaded pattern (fitsSlot). */
+const SLOT={
+  stretch:      {types:RESTORE_TYPES,stage:null,label:'stretch'},
+  activation:   {types:BUILD_TYPES,stage:'activate',strict:true,label:'activation exercise'},
+  loaded:       {types:BUILD_TYPES,stage:'integrate',label:'loaded exercise'},
+  // A hypermobile movement's stretches become stabilization: stretching is withheld.
+  stabilization:{types:STABILIZATION_TYPES,stage:'activate',label:'stabilization exercise'},
+};
+const qualityName=q=>q.replace(/\b\w/g,c=>c.toUpperCase());
 
 /* Exercises in a category whose type suits the indicated phase, ordered so the
    clinician-curated picks come first. */
@@ -1648,88 +1704,119 @@ const KIND_OF_TYPE={'flexibility':'lengthen','mobility':'lengthen',
   'static stabilization':'strengthen','dynamic stabilization':'strengthen','strength':'strengthen'};
 const coverKey=id=>`${EXERCISE_TARGETS[id]}::${KIND_OF_TYPE[EX_TYPE[id]]}`;
 
-/* What one movement asks of the sheet: the kind of work, how many picks, and
-   which body areas its faults point at. */
-function movementNeed(movementKey,left,right,isHyper,faultIds,limit){
-  const n=limit??PER_MOVEMENT_DEFAULT;
+/* What one movement asks of the sheet: its picks (SIDE_TABLE), the kind of
+   work each is, and which body areas its faults point at, and which way. */
+function movementNeed(movementKey,left,right,isHyper,faultIds,limit,quality){
   const L=left??3, R=right??3;
-  const worst=Math.min(L,R);
-  const asymmetry=Math.abs(L-R);
+  const worst=Math.min(L,R), better=Math.max(L,R);
+  const asymmetry=better-worst;
+  const row=`${worst}/${better}`;
   const faults=(faultIds||[]).filter(f=>!MODIFIER_FAULTS.has(f));
   const modifiers=(faultIds||[]).filter(f=>MODIFIER_FAULTS.has(f));
   const worseSide=L===R?null:(L<R?0:1);
-  const base={key:movementKey,worst,asymmetry,worseSide,modifiers,slots:[],weight:{},targets:[]};
-  if(worst>=3&&!isHyper&&!faults.length)
-    return{...base,phase:'none',reason:'Clean on both sides.'};
-
   // Overlapping hands is a hypermobility sign: stretching is withheld outright.
   const suppress=(faultIds||[]).some(f=>SUPPRESS_FLEXIBILITY_FAULTS.has(f));
   const stabilize=isHyper||suppress;
   // At a 1 the strength work is activation only (EX_STAGE): never the loaded pattern.
   const lowLoad=worst<=1;
-  const phase=stabilize?'stabilize':lowLoad?'restore':'build';
 
-  // Asymmetry is an independent finding, not a rounding error: in an industrial
-  // population each 1% of bilateral asymmetry raised low-back injury risk 18.5%.
-  const count=asymmetry>=1?n+1:n;
-  // A restricted pattern leads with lengthening and gets one strengthening pick
-  // second; every other phase strengthens throughout.
-  const slots=Array.from({length:count},(_,i)=>phase==='restore'&&i!==1?'lengthen':'strengthen');
+  /* QUALITY FOCUS DECIDES THE KIND OF WORK. Owner, 2026-11-23, of a Single Leg
+     Dip with only Dynamic Stabilization ticked: "over half of the exercise
+     selection options highlighted". Ticking a quality used to add every
+     exercise of that type in the section on top of the plan, past every rule
+     here -- 8 of SL Dip's 17, seven of them loaded, at any score. He chose:
+     the ticked qualities replace the table's kinds for that movement; the
+     number of picks and the limits stay. Stretching stays withheld when
+     hypermobile, so a ticked Flexibility or Mobility is set aside there. */
+  const known=(quality||[]).filter(q=>q in KIND_OF_TYPE);
+  const ticked=known.filter(q=>!(stabilize&&KIND_OF_TYPE[q]==='lengthen'));
+  const setAside=known.filter(q=>!ticked.includes(q));
 
-  const targets=faults.flatMap(f=>FAULT_IMPAIRMENT[f]||[]);
+  let kinds=(SIDE_TABLE[row]||[]).slice();
+  // A clean 3/3 gets nothing, unless something was flagged on it anyway: then
+  // one pick, of the kind that was flagged.
+  if(!kinds.length){
+    if(ticked.length)kinds=['loaded'];
+    else if(stabilize)kinds=['stabilization'];
+    else if(faults.length)kinds=[faults.some(f=>FAULT_IMPAIRMENT[f]?.strengthen.length)?'loaded':'stretch'];
+  }
+  let slots=kinds.map(k=>({kind:k,...SLOT[k]}));
+  if(stabilize)slots=slots.map(s=>s.kind==='stretch'?{kind:'stabilization',...SLOT.stabilization}:s);
+  if(ticked.length){
+    const label=`${ticked.map(qualityName).join(' or ')} exercise`;
+    // The slot's stage stays as a preference, so 2/2 still leans loaded then
+    // activation within the quality. A 1 is held to activation by fitsSlot.
+    slots=slots.map(s=>({...s,types:ticked,strict:false,label}));
+  }
+  if(limit!=null)slots=slots.slice(0,limit);
+
   const weight={};
-  targets.forEach(t=>{weight[t]=(weight[t]||0)+1;});
-  const reason=suppress
-    ?'Hands overlapped — hypermobility. Stabilization only; stretching withheld.'
-    :isHyper
-      ?'Hypermobile — stabilization rather than stretching.'
-      :lowLoad
-        ?'Restricted (3+ faults or reduced range) — restore motion, plus low-load strength.'
-        :'Full range with compensation — stabilize and strengthen.';
-  return{...base,phase,lowLoad,slots,weight,targets:[...new Set(targets)],reason};
+  faults.forEach(f=>{const m=FAULT_IMPAIRMENT[f];if(!m)return;
+    for(const kind of ['lengthen','strengthen'])m[kind].forEach(a=>{const k=`${a}::${kind}`;weight[k]=(weight[k]||0)+1;});});
+  const targets=[...new Set(faults.flatMap(faultAreas))];
+  const tight=faults.flatMap(f=>FAULT_IMPAIRMENT[f]?.lengthen||[]).filter(a=>TIGHT_MUSCLE_AREAS.has(a));
+
+  const phase=!slots.length?'none':stabilize?'stabilize':lowLoad?'restore':'build';
+  const counts=[];
+  slots.forEach(s=>{const c=counts.find(x=>x.label===s.label);if(c)c.n++;else counts.push({label:s.label,n:1});});
+  const words=['no','one','two','three','four'];
+  const plural=l=>l.endsWith('stretch')?l+'es':l+'s';
+  const reasonBits=[];
+  if(suppress)reasonBits.push('Hands overlapped — hypermobility, so stretching is withheld.');
+  else if(isHyper)reasonBits.push('Hypermobile — stabilization in place of stretching.');
+  reasonBits.push(`${SIDE_LABEL[row]||'Scored'}${counts.length?': '+counts.map(c=>`${words[c.n]||c.n} ${c.n>1?plural(c.label):c.label}`).join(' and '):''}.`);
+  if(setAside.length)reasonBits.push(`Quality Focus ${setAside.map(qualityName).join(' and ')} set aside: stretching is withheld when hypermobile.`);
+  return{key:movementKey,worst,asymmetry,worseSide,modifiers,phase,lowLoad,row,slots,weight,targets,tight,
+    quality:ticked,reason:reasonBits.join(' ')};
 }
 
 function fitsSlot(id,slot,need){
-  if(KIND_OF_TYPE[EX_TYPE[id]]!==slot)return false;
-  return slot!=='strengthen'||!need.lowLoad||EX_STAGE[id]==='activate';
+  const t=EX_TYPE[id];
+  if(!slot.types.includes(t))return false;
+  if(KIND_OF_TYPE[t]!=='strengthen')return true;
+  if(need.tightSheet?.has(EXERCISE_TARGETS[id]))return false;
+  if(need.lowLoad)return EX_STAGE[id]==='activate';
+  return !slot.strict||EX_STAGE[id]===slot.stage;
 }
 
 /* Candidates for one pick, best first.
-   First, exercises anywhere in the library aimed at an area this movement's
-   faults point at, ranked by how many faults agree on that area, then areas this
-   movement has not been given anything for yet, then its own exercises, then the
-   curated order. A fault can reach another movement's exercise on purpose: a
-   cervical rotation limit is better answered with thoracic work than neck work.
-   After those, the movement's own exercises as the score alone would choose. */
+   The kind of work comes first: what the slot is for (SIDE_TABLE, or the
+   ticked qualities) decides, and the faults choose within it. Within that,
+   exercises anywhere in the library aimed at an area this movement's faults
+   point at -- the right way round, stretched or strengthened -- ranked by how
+   many faults agree on it, then areas this movement has not been given
+   anything for yet, then its own exercises, then the curated order. A fault can
+   reach another movement's exercise on purpose: a cervical rotation limit is
+   better answered with thoracic work than neck work. After those, the
+   movement's own exercises as the score alone would choose. An exercise of the
+   stage the slot does not prefer comes only after all of those. */
 function candidatesFor(need,slot,order){
-  const curated=(slot==='lengthen'?MOBILITY_SUGGEST:HYPER_SUGGEST)[need.key]||[];
-  const rank=id=>{const i=curated.indexOf(id);return i<0?999:i;};
+  const curated=id=>(KIND_OF_TYPE[EX_TYPE[id]]==='lengthen'?MOBILITY_SUGGEST:HYPER_SUGGEST)[need.key]||[];
+  const rank=id=>{const i=curated(id).indexOf(id);return i<0?999:i;};
   const own=id=>EXERCISE_CATEGORY[id]===need.key?0:1;
   const touched=new Set(need.picked.map(id=>EXERCISE_TARGETS[id]));
   const seen=id=>touched.has(EXERCISE_TARGETS[id])?1:0;
-  const w=id=>need.weight[EXERCISE_TARGETS[id]]||0;
+  const w=id=>need.weight[coverKey(id)]||0;
   const at=id=>order.indexOf(id);
-  // A 2 has the range and lacks control under load, so loaded, whole-pattern
-  // work comes first there (EXERCISE-SELECTION-LOGIC.md §6: "prefer the loaded
-  // one for a score of 2"). A 1 cannot have it at all (fitsSlot). Without this,
-  // the activation exercises always ranked first and no loaded exercise was
-  // ever suggested.
-  const load=id=>need.phase==='build'&&EX_STAGE[id]==='integrate'?0:1;
+  const off=id=>slot.stage&&KIND_OF_TYPE[EX_TYPE[id]]==='strengthen'&&EX_STAGE[id]!==slot.stage?1:0;
   const fits=order.filter(id=>fitsSlot(id,slot,need));
   const fromFaults=fits.filter(id=>w(id))
-    .sort((a,b)=>w(b)-w(a)||seen(a)-seen(b)||load(a)-load(b)||own(a)-own(b)||rank(a)-rank(b)||at(a)-at(b));
+    .sort((a,b)=>w(b)-w(a)||seen(a)-seen(b)||own(a)-own(b)||rank(a)-rank(b)||at(a)-at(b));
   const fromScore=fits.filter(id=>!w(id)&&own(id)===0)
-    .sort((a,b)=>seen(a)-seen(b)||load(a)-load(b)||rank(a)-rank(b)||at(a)-at(b));
-  return[...fromFaults.map(id=>({id,src:'faults'})),...fromScore.map(id=>({id,src:'score'}))];
+    .sort((a,b)=>seen(a)-seen(b)||rank(a)-rank(b)||at(a)-at(b));
+  const all=[...fromFaults.map(id=>({id,src:'faults'})),...fromScore.map(id=>({id,src:'score'}))];
+  return[...all.filter(c=>!off(c.id)),...all.filter(c=>off(c.id))];
 }
 
-/* The whole sheet. entries: [{key,left,right,isHyper,faultIds,limit}], one per
-   movement that can be prescribed for (pain is the caller's to exclude).
-   Returns, per movement, the exercises it contributes and why. */
+/* The whole sheet. entries: [{key,left,right,isHyper,faultIds,limit,quality}],
+   one per movement that can be prescribed for (pain is the caller's to
+   exclude). Returns, per movement, the exercises it contributes and why. */
 function suggestPlan(entries){
   const order=Object.values(CAT_EXERCISES).flat().map(e=>e.id);
-  const needs=entries.map(e=>({...movementNeed(e.key,e.left,e.right,e.isHyper,e.faultIds,e.limit),
+  const needs=entries.map(e=>({...movementNeed(e.key,e.left,e.right,e.isHyper,e.faultIds,e.limit,e.quality),
     picked:[],sources:{},covered:[]}));
+  const tightSheet=new Set(needs.flatMap(n=>n.tight));
+  needs.forEach(n=>{n.tightSheet=tightSheet;});
   const turns=needs.map((n,i)=>({n,i})).filter(x=>x.n.slots.length)
     .sort((a,b)=>a.n.worst-b.n.worst||b.n.asymmetry-a.n.asymmetry
       ||b.n.targets.length-a.n.targets.length||a.i-b.i)
@@ -1744,7 +1831,7 @@ function suggestPlan(entries){
       if(by){
         // Already on the sheet for another movement: say which, and look further.
         if(by.key!==need.key&&!need.covered.some(c=>c.cover===k))
-          need.covered.push({cover:k,target:EXERCISE_TARGETS[id],kind:slot,byId:by.id,byMovement:by.key});
+          need.covered.push({cover:k,target:EXERCISE_TARGETS[id],kind:KIND_OF_TYPE[EX_TYPE[id]],byId:by.id,byMovement:by.key});
         continue;
       }
       coveredBy[k]={id,key:need.key};
@@ -1754,16 +1841,22 @@ function suggestPlan(entries){
     }
   }
   const out={};
-  needs.forEach(n=>{out[n.key]={ids:n.picked,phase:n.phase,asymmetry:n.asymmetry,worseSide:n.worseSide,
-    reason:n.reason,driver:n.picked.some(id=>n.sources[id]==='faults')?'faults':'severity',
-    sources:n.sources,targets:n.targets,modifiers:n.modifiers,covered:n.covered};});
+  // The reason names the picks the table asked for; say so when fewer fit, so
+  // the ⓘ never promises three and shows one.
+  const fewer=n=>{const k=n.picked.length;if(k>=n.slots.length)return'';
+    return k?` Only ${['','one','two'][k]||k} ${k===1?'fits':'fit'} that ${k===1?'is':'are'} not already on the sheet.`
+      :' None fits that is not already on the sheet.';};
+  needs.forEach(n=>{out[n.key]={ids:n.picked,phase:n.phase,row:n.row,asymmetry:n.asymmetry,worseSide:n.worseSide,
+    reason:n.reason+fewer(n),driver:n.picked.some(id=>n.sources[id]==='faults')?'faults':'severity',
+    sources:n.sources,targets:n.targets,modifiers:n.modifiers,covered:n.covered,quality:n.quality,
+    slots:n.slots.map(s=>s.kind)};});
   return out;
 }
 
 /* One movement on its own, as if nothing else were on the sheet. The builder
    uses suggestPlan; this is the same rule for a single movement. */
-function suggestForMovement(movementKey,left,right,isHyper,faultIds,limit){
-  return suggestPlan([{key:movementKey,left,right,isHyper,faultIds,limit}])[movementKey];
+function suggestForMovement(movementKey,left,right,isHyper,faultIds,limit,quality){
+  return suggestPlan([{key:movementKey,left,right,isHyper,faultIds,limit,quality}])[movementKey];
 }
 
 let IMAGE_REGISTRY={};
@@ -2058,6 +2151,39 @@ function normalizeObservations(key,stored){
 function faultLabel(key,id){
   const hit=(MOVEMENT_FAULTS[key]||[]).find(f=>f.id===id);
   return hit?hit.label:id;
+}
+
+/* An assessment record to the builder's suggested sheet: what is selected, and
+   why, per movement. Everything reaches the sheet through suggestPlan, Quality
+   Focus included, so every rule there holds for every pick. */
+function planForRecord(rec){
+  const selected={}, suggested={}, hyperSuggested={}, notes={};
+  const hyper=rec.hypermobile||{};
+  const entries=[];
+  MOVEMENTS.forEach(m=>{
+    const s=rec.scores[m.key];
+    const isHyper=hyper[m.key]||false;
+    // A side scored 0 is pain: referral, not exercise. Treat it as "no usable
+    // score" rather than as the worst possible one, so a painful movement does
+    // not silently drive an aggressive plan.
+    const raw=[s[0].val,s[1].val];
+    const painful=raw.some(v=>v===0);
+    if(painful&&!isHyper){notes[m.key]={phase:'refer',reason:'Pain reported — refer rather than prescribe.'};return;}
+    // Faults the EIS actually ticked, read through the id normalizer so
+    // assessments predating stable fault ids still drive selection.
+    const ticked=Object.keys(normalizeObservations(m.key,(rec.observations||{})[m.key]));
+    entries.push({key:m.key,left:raw[0],right:raw[1],isHyper,faultIds:ticked,
+      quality:(rec.qualityFocus||{})[m.key]||[]});
+  });
+  // Planned together, so one movement's pick can answer another's need.
+  const plan=suggestPlan(entries);
+  entries.forEach(({key,isHyper})=>{
+    const out=plan[key];
+    out.ids.forEach(id=>selected[id]=true);
+    if(out.ids.length)(isHyper?hyperSuggested:suggested)[key]=true;
+    if(out.phase!=='none')notes[key]=out;
+  });
+  return{selected,suggested,hyperSuggested,notes};
 }
 const QUALITY_TYPES=['flexibility','mobility','static stabilization','dynamic stabilization','strength'];
 const QUALITY_LABELS={'flexibility':'Flexibility','mobility':'Mobility','static stabilization':'Static Stabilization','dynamic stabilization':'Dynamic Stabilization','strength':'Strength'};
@@ -2715,38 +2841,9 @@ function openExerciseBuilder(rec){
     });
     restoredProgram=true;
   } else if(rec){
-    const hyper=rec.hypermobile||{};
-    const entries=[];
-    MOVEMENTS.forEach(m=>{
-      const s=rec.scores[m.key];
-      const isHyper=hyper[m.key]||false;
-      // A side scored 0 is pain: referral, not exercise. Treat it as "no usable
-      // score" rather than as the worst possible one, so a painful movement does
-      // not silently drive an aggressive plan.
-      const raw=[s[0].val,s[1].val];
-      const painful=raw.some(v=>v===0);
-      if(painful&&!isHyper){suggestionNotes[m.key]={phase:'refer',reason:'Pain reported — refer rather than prescribe.'};return;}
-
-      // Faults the EIS actually ticked, read through the id normalizer so
-      // assessments predating stable fault ids still drive selection.
-      const ticked=Object.keys(normalizeObservations(m.key,(rec.observations||{})[m.key]));
-      entries.push({key:m.key,left:raw[0],right:raw[1],isHyper,faultIds:ticked});
-    });
-    // Planned together, so one movement's pick can answer another's need.
-    const plan=suggestPlan(entries);
-    entries.forEach(({key,isHyper})=>{
-      const out=plan[key];
-      out.ids.forEach(id=>selectedExercises[id]=true);
-      if(out.ids.length)(isHyper?hyperSuggestedKeys:suggestedKeys)[key]=true;
-      if(out.phase!=='none')suggestionNotes[key]=out;
-    });
-    // Quality focus bias — add exercises matching preferred types on top of auto-suggestions
-    const recQF=rec.qualityFocus||{};
-    MOVEMENTS.forEach(m=>{
-      const prefs=recQF[m.key]||[];
-      if(!prefs.length)return;
-      (CAT_EXERCISES[m.key]||[]).forEach(ex=>{if(prefs.includes(EX_TYPE[ex.id]))selectedExercises[ex.id]=true;});
-    });
+    // Quality Focus is part of the plan now, not a second pass on top of it.
+    const p=planForRecord(rec);
+    selectedExercises=p.selected;suggestedKeys=p.suggested;hyperSuggestedKeys=p.hyperSuggested;suggestionNotes=p.notes;
   }
   if(!restoredProgram)deduplicateExercises(rec);else resolvedConflicts=[];
   buildExerciseUI();
@@ -2837,7 +2934,7 @@ function buildExerciseUI(){
         bits.push(`Already on the sheet: ${note.covered.map(c=>
           `${formatTarget(c.target)} ${c.kind==='lengthen'?'stretched':'strengthened'} by ${exName(c.byId)} (${catLabel(c.byMovement)})`).join('; ')}.`);
       if(note.asymmetry>=1&&note.worseSide!==null)
-        bits.push(`Asymmetric by ${note.asymmetry} — ${MOVEMENTS.find(m=>m.key===key)?.sides[note.worseSide]||'one side'} is worse.`);
+        bits.push(`Asymmetric by ${note.asymmetry} — ${MOVEMENTS.find(m=>m.key===key)?.sides[note.worseSide]||'one side'} is worse; both sides get the same work.`);
       if(note.modifiers?.length)
         bits.push(`Also noted: ${note.modifiers.map(f=>faultLabel(key,f)).join('; ')}.`);
       const text=escHtml(bits.join(' '));
@@ -3183,7 +3280,8 @@ function _renderPrintSheet(chosen,sched){
         </div>`;
       }).join('');
     })()}
-    <div class="print-footer">ATI Worksite Solutions${_footerCompany()} &nbsp;|&nbsp; Generated ${new Date().toLocaleDateString()}<br>These exercises are personalized recommendations. Please perform as directed by your provider.</div>
+    ${/* The footer prints once, on the last page (owner, 2026-11-23). The
+         Weekly Exercise Schedule always prints last and carries it. */''}
     ${_buildCalendarPage(chosen,sched)}`;
   document.getElementById('ex-builder').classList.add('hidden');
   document.getElementById('ex-print').classList.remove('hidden');
