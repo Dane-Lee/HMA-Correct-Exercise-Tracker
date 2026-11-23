@@ -1732,23 +1732,29 @@ function movementNeed(movementKey,left,right,isHyper,faultIds,limit,quality){
   const ticked=known.filter(q=>!(stabilize&&KIND_OF_TYPE[q]==='lengthen'));
   const setAside=known.filter(q=>!ticked.includes(q));
 
-  let kinds=(SIDE_TABLE[row]||[]).slice();
   // A clean 3/3 gets nothing, unless something was flagged on it anyway: then
   // one pick, of the kind that was flagged.
-  if(!kinds.length){
-    if(ticked.length)kinds=['loaded'];
-    else if(stabilize)kinds=['stabilization'];
-    else if(faults.length)kinds=[faults.some(f=>FAULT_IMPAIRMENT[f]?.strengthen.length)?'loaded':'stretch'];
+  let tableKinds=(SIDE_TABLE[row]||[]).slice();
+  if(!tableKinds.length){
+    if(stabilize)tableKinds=['stabilization'];
+    else if(faults.length)tableKinds=[faults.some(f=>FAULT_IMPAIRMENT[f]?.strengthen.length)?'loaded':'stretch'];
   }
-  let slots=kinds.map(k=>({kind:k,...SLOT[k]}));
-  if(stabilize)slots=slots.map(s=>s.kind==='stretch'?{kind:'stabilization',...SLOT.stabilization}:s);
+  const kinds=!(SIDE_TABLE[row]||[]).length&&ticked.length?['loaded']:tableKinds;
+  const toSlots=ks=>{
+    let s=ks.map(k=>({kind:k,...SLOT[k]}));
+    if(stabilize)s=s.map(x=>x.kind==='stretch'?{kind:'stabilization',...SLOT.stabilization}:x);
+    return limit!=null?s.slice(0,limit):s;
+  };
+  // What the table asks for without Quality Focus: the fallback when the
+  // library has nothing of the ticked kind for this movement (suggestPlan).
+  const tableSlots=toSlots(tableKinds);
+  let slots=toSlots(kinds);
   if(ticked.length){
     const label=`${ticked.map(qualityName).join(' or ')} exercise`;
     // The slot's stage stays as a preference, so 2/2 still leans loaded then
     // activation within the quality. A 1 is held to activation by fitsSlot.
     slots=slots.map(s=>({...s,types:ticked,strict:false,label}));
   }
-  if(limit!=null)slots=slots.slice(0,limit);
 
   const weight={};
   faults.forEach(f=>{const m=FAULT_IMPAIRMENT[f];if(!m)return;
@@ -1756,18 +1762,28 @@ function movementNeed(movementKey,left,right,isHyper,faultIds,limit,quality){
   const targets=[...new Set(faults.flatMap(faultAreas))];
   const tight=faults.flatMap(f=>FAULT_IMPAIRMENT[f]?.lengthen||[]).filter(a=>TIGHT_MUSCLE_AREAS.has(a));
 
-  const phase=!slots.length?'none':stabilize?'stabilize':lowLoad?'restore':'build';
+  const need={key:movementKey,worst,asymmetry,worseSide,modifiers,lowLoad,row,slots,tableSlots,weight,targets,tight,
+    quality:ticked,setAside,suppress,isHyper,stabilize};
+  return Object.assign(need,describeNeed(need));
+}
+
+/* The phase and the ⓘ sentence for one movement, from the picks it asks for.
+   Separate from movementNeed because suggestPlan can still change the picks: a
+   ticked quality the library cannot answer falls back to the table. */
+function describeNeed(n){
+  const phase=!n.slots.length?'none':n.stabilize?'stabilize':n.lowLoad?'restore':'build';
   const counts=[];
-  slots.forEach(s=>{const c=counts.find(x=>x.label===s.label);if(c)c.n++;else counts.push({label:s.label,n:1});});
+  n.slots.forEach(s=>{const c=counts.find(x=>x.label===s.label);if(c)c.n++;else counts.push({label:s.label,n:1});});
   const words=['no','one','two','three','four'];
   const plural=l=>l.endsWith('stretch')?l+'es':l+'s';
-  const reasonBits=[];
-  if(suppress)reasonBits.push('Hands overlapped — hypermobility, so stretching is withheld.');
-  else if(isHyper)reasonBits.push('Hypermobile — stabilization in place of stretching.');
-  reasonBits.push(`${SIDE_LABEL[row]||'Scored'}${counts.length?': '+counts.map(c=>`${words[c.n]||c.n} ${c.n>1?plural(c.label):c.label}`).join(' and '):''}.`);
-  if(setAside.length)reasonBits.push(`Quality Focus ${setAside.map(qualityName).join(' and ')} set aside: stretching is withheld when hypermobile.`);
-  return{key:movementKey,worst,asymmetry,worseSide,modifiers,phase,lowLoad,row,slots,weight,targets,tight,
-    quality:ticked,reason:reasonBits.join(' ')};
+  const bits=[];
+  if(n.suppress)bits.push('Hands overlapped — hypermobility, so stretching is withheld.');
+  else if(n.isHyper)bits.push('Hypermobile — stabilization in place of stretching.');
+  bits.push(`${SIDE_LABEL[n.row]||'Scored'}${counts.length?': '+counts.map(c=>`${words[c.n]||c.n} ${c.n>1?plural(c.label):c.label}`).join(' and '):''}.`);
+  if(n.setAside.length)bits.push(`Quality Focus ${n.setAside.map(qualityName).join(' and ')} set aside: stretching is withheld when hypermobile.`);
+  if(n.qualityUnanswered?.length)
+    bits.push(`Quality Focus ${n.qualityUnanswered.map(qualityName).join(' and ')} set aside: no exercise of that kind suits this movement at this score.`);
+  return{phase,reason:bits.join(' ')};
 }
 
 function fitsSlot(id,slot,need){
@@ -1814,9 +1830,23 @@ function candidatesFor(need,slot,order){
 function suggestPlan(entries){
   const order=Object.values(CAT_EXERCISES).flat().map(e=>e.id);
   const needs=entries.map(e=>({...movementNeed(e.key,e.left,e.right,e.isHyper,e.faultIds,e.limit,e.quality),
-    picked:[],sources:{},covered:[]}));
+    picked:[],sources:{},covered:[],shortNone:0,shortCovered:0}));
   const tightSheet=new Set(needs.flatMap(n=>n.tight));
   needs.forEach(n=>{n.tightSheet=tightSheet;});
+  /* A TICKED QUALITY THE LIBRARY CANNOT ANSWER FOLLOWS THE SCORE. Cervical has
+     no Strength exercise, Lunge and Single Leg Dip no Mobility, Shoulder no
+     Static Stabilization, and Trunk's only Strength exercise is loaded, so not
+     for a 1. Until 2026-11-23 ticking one of those emptied the movement: a
+     Cervical 1/1 with Strength ticked got nothing at all, and its ⓘ blamed the
+     rest of the sheet. Only when nothing at all fits; a quality that fills some
+     of its picks keeps them (one Dynamic Stabilization exercise for a 1 on the
+     Single Leg Dip is the answer he asked for). */
+  needs.forEach(n=>{
+    if(n.quality.length&&n.slots.length&&!n.slots.some(s=>candidatesFor(n,s,order).length)){
+      n.qualityUnanswered=n.quality;n.slots=n.tableSlots;
+      Object.assign(n,describeNeed(n));
+    }
+  });
   const turns=needs.map((n,i)=>({n,i})).filter(x=>x.n.slots.length)
     .sort((a,b)=>a.n.worst-b.n.worst||b.n.asymmetry-a.n.asymmetry
       ||b.n.targets.length-a.n.targets.length||a.i-b.i)
@@ -1826,30 +1856,43 @@ function suggestPlan(entries){
   for(let r=0;r<rounds;r++)for(const need of turns){
     const slot=need.slots[r];
     if(!slot)continue;
+    let placed=false, onSheet=false;
     for(const {id,src} of candidatesFor(need,slot,order)){
       const k=coverKey(id), by=coveredBy[k];
       if(by){
         // Already on the sheet for another movement: say which, and look further.
-        if(by.key!==need.key&&!need.covered.some(c=>c.cover===k))
-          need.covered.push({cover:k,target:EXERCISE_TARGETS[id],kind:KIND_OF_TYPE[EX_TYPE[id]],byId:by.id,byMovement:by.key});
+        if(by.key!==need.key){onSheet=true;
+          if(!need.covered.some(c=>c.cover===k))
+            need.covered.push({cover:k,target:EXERCISE_TARGETS[id],kind:KIND_OF_TYPE[EX_TYPE[id]],byId:by.id,byMovement:by.key});}
         continue;
       }
       coveredBy[k]={id,key:need.key};
       need.picked.push(id);
       need.sources[id]=src;
+      placed=true;
       break;
     }
+    // Why a pick went unfilled: another movement already covers what fits, or
+    // the library has nothing more that fits (its own picks used it up).
+    if(!placed)onSheet?need.shortCovered++:need.shortNone++;
   }
   const out={};
-  // The reason names the picks the table asked for; say so when fewer fit, so
-  // the ⓘ never promises three and shows one.
+  /* The reason names the picks the table asked for; say so when fewer fit, so
+     the ⓘ never promises three and shows one -- and give the true cause. Until
+     2026-11-23 it always blamed the rest of the sheet, including in his own
+     case, where the library has one activation-level Dynamic Stabilization
+     exercise for the Single Leg Dip and nothing was on the sheet at all. */
   const fewer=n=>{const k=n.picked.length;if(k>=n.slots.length)return'';
-    return k?` Only ${['','one','two'][k]||k} ${k===1?'fits':'fit'} that ${k===1?'is':'are'} not already on the sheet.`
-      :' None fits that is not already on the sheet.';};
+    const num=['none','one','two','three'][k]||k, fit=k===1?'fits':'fit';
+    if(!n.shortNone)return k?` Only ${num} ${fit} that ${k===1?'is':'are'} not already on the sheet.`
+      :' None fits that is not already on the sheet.';
+    if(!n.shortCovered)return k?` The library has only ${num} that ${fit}.`:' The library has none that fits.';
+    return k?` Only ${num} ${fit}: the library has no more, and the rest are already on the sheet.`
+      :' None fits: the library has none, or it is already on the sheet.';};
   needs.forEach(n=>{out[n.key]={ids:n.picked,phase:n.phase,row:n.row,asymmetry:n.asymmetry,worseSide:n.worseSide,
     reason:n.reason+fewer(n),driver:n.picked.some(id=>n.sources[id]==='faults')?'faults':'severity',
     sources:n.sources,targets:n.targets,modifiers:n.modifiers,covered:n.covered,quality:n.quality,
-    slots:n.slots.map(s=>s.kind)};});
+    qualityUnanswered:n.qualityUnanswered||[],slots:n.slots.map(s=>s.kind)};});
   return out;
 }
 
@@ -2165,10 +2208,13 @@ function planForRecord(rec){
     const isHyper=hyper[m.key]||false;
     // A side scored 0 is pain: referral, not exercise. Treat it as "no usable
     // score" rather than as the worst possible one, so a painful movement does
-    // not silently drive an aggressive plan.
+    // not silently drive an aggressive plan. HYPERMOBILE OR NOT: the spec is
+    // "pain(0) -> refer, no exercises" (EXERCISE-SELECTION-LOGIC.md §8). Until
+    // 2026-11-23 a hypermobile movement was exempt, so pain plus hypermobility
+    // got a stabilization exercise and an ⓘ that never mentioned the pain.
     const raw=[s[0].val,s[1].val];
     const painful=raw.some(v=>v===0);
-    if(painful&&!isHyper){notes[m.key]={phase:'refer',reason:'Pain reported — refer rather than prescribe.'};return;}
+    if(painful){notes[m.key]={phase:'refer',reason:'Pain reported — refer rather than prescribe.'};return;}
     // Faults the EIS actually ticked, read through the id normalizer so
     // assessments predating stable fault ids still drive selection.
     const ticked=Object.keys(normalizeObservations(m.key,(rec.observations||{})[m.key]));
@@ -2906,6 +2952,16 @@ function buildExerciseUI(){
   // Open state survives a re-render (Clear All) once a sheet is open; a newly
   // opened sheet starts from what is selected.
   const openMap=exCatOpen||{};
+  /* A PICK SHOWN UNDER ANOTHER MOVEMENT SAYS WHOSE IT IS. A recorded fault can
+     reach an exercise in another section on purpose (a neck rotation limit
+     answered with thoracic work), and about 1 pick in 10 does. The exercise is
+     listed in its own section, so until 2026-11-23 a section that scored clean
+     could show a selected exercise with no ⓘ at all, and the ⓘ that explained it
+     sat on a different section. Now both ⓘs say so. */
+  const away={},hosted={};
+  if(!restoredProgram)Object.entries(suggestionNotes).forEach(([m,n])=>(n.ids||[]).forEach(id=>{
+    const c=EXERCISE_CATEGORY[id];if(!c||c===m)return;
+    (away[m]=away[m]||[]).push(id);(hosted[c]=hosted[c]||[]).push({id,by:m});}));
   document.getElementById('ex-categories').innerHTML=cats.map(({key,data})=>{
     const isHyper=hyperSuggestedKeys[key];
     const isMobility=suggestedKeys[key];
@@ -2920,8 +2976,9 @@ function buildExerciseUI(){
     // still readable while the section is closed.
     const note=suggestionNotes[key];
     let why='';
+    const bits=[];
     if(note&&!restoredProgram){
-      const bits=[note.reason];
+      bits.push(note.reason);
       const fromScore=(note.ids||[]).filter(id=>note.sources?.[id]==='score');
       if(note.driver==='faults'&&note.targets?.length){
         bits.push(`From the faults you recorded: ${note.targets.map(formatTarget).join(', ')}.`);
@@ -2930,6 +2987,8 @@ function buildExerciseUI(){
         bits.push(!note.targets?.length?'No fault recorded, so this follows the score alone.'
           :note.covered?.length?'What your recorded faults point at is already on the sheet, so this follows the score alone.'
           :'No recorded fault pointed anywhere reachable, so this follows the score alone.');
+      if(away[key])[...new Set(away[key].map(id=>EXERCISE_CATEGORY[id]))].forEach(c=>
+        bits.push(`Shown under ${catLabel(c)}: ${away[key].filter(id=>EXERCISE_CATEGORY[id]===c).map(exName).join(', ')}.`));
       if(note.covered?.length)
         bits.push(`Already on the sheet: ${note.covered.map(c=>
           `${formatTarget(c.target)} ${c.kind==='lengthen'?'stretched':'strengthened'} by ${exName(c.byId)} (${catLabel(c.byMovement)})`).join('; ')}.`);
@@ -2937,6 +2996,9 @@ function buildExerciseUI(){
         bits.push(`Asymmetric by ${note.asymmetry} — ${MOVEMENTS.find(m=>m.key===key)?.sides[note.worseSide]||'one side'} is worse; both sides get the same work.`);
       if(note.modifiers?.length)
         bits.push(`Also noted: ${note.modifiers.map(f=>faultLabel(key,f)).join('; ')}.`);
+    }
+    (hosted[key]||[]).forEach(h=>bits.push(`${exName(h.id)} is selected for ${catLabel(h.by)}, not for this movement.`));
+    if(bits.length){
       const text=escHtml(bits.join(' '));
       // preventDefault: a click on the ⓘ shows it, and must not also fold the section.
       why=`<span class="info" tabindex="0" role="tooltip" aria-label="${text}" onclick="event.preventDefault()">i<span class="tip">${text}</span></span>`;
